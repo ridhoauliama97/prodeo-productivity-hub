@@ -42,6 +42,7 @@ import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase-client";
 import { fetchInboxCount } from "@/lib/api-client";
 import type { Workspace, Page } from "@/lib/types";
+import { ConfirmModal } from "./modals/confirm-modal";
 
 interface SidebarProps {
   workspace: Workspace | null;
@@ -259,16 +260,19 @@ export function Sidebar({
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive cursor-pointer"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDeletePage(page.id);
-                  }}
+                <ConfirmModal
+                  onConfirm={() => onDeletePage(page.id)}
+                  title="Delete Page?"
+                  description="Are you sure you want to delete this page and all its content? This action cannot be undone."
                 >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete
-                </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive cursor-pointer"
+                    onSelect={(e) => e.preventDefault()}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                </ConfirmModal>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

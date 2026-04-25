@@ -36,6 +36,8 @@ import { createClient } from "@/lib/supabase-client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { CropImageDialog } from "./crop-image-dialog";
+import { ConfirmModal } from "./confirm-modal";
+import { Switch } from "@/components/ui/switch";
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -62,6 +64,19 @@ export function ProfileModal({
   const [password, setPassword] = React.useState("");
   const [isUpdatingProfile, setIsUpdatingProfile] = React.useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = React.useState(false);
+  const [notificationSettings, setNotificationSettings] = React.useState({
+    email: {
+      mentions: true,
+      assignments: true,
+      comments: true,
+      updates: false,
+    },
+    desktop: {
+      mentions: true,
+      assignments: true,
+      comments: true,
+    },
+  });
 
   const supabase = createClient();
   const router = useRouter();
@@ -86,6 +101,9 @@ export function ProfileModal({
         setAvatarUrl(data.avatar_url || "");
         setUsername(data.username || "");
         setBio(data.bio || "");
+        if (data.notification_settings) {
+          setNotificationSettings(data.notification_settings);
+        }
       }
     };
     fetchProfile();
@@ -127,6 +145,7 @@ export function ProfileModal({
         username: username,
         bio: bio,
         avatar_url: finalAvatarUrl,
+        notification_settings: notificationSettings,
         updated_at: new Date().toISOString(),
       });
 
@@ -185,13 +204,6 @@ export function ProfileModal({
 
   const handleDeleteAccount = async () => {
     if (!user) return;
-    if (
-      !window.confirm(
-        "Are you absolutely sure you want to delete your entire account? This will delete all your workspaces, pages, and data permanently. This action cannot be undone.",
-      )
-    ) {
-      return;
-    }
     setIsDeletingAccount(true);
     try {
       const { error } = await supabase.rpc("delete_user_account");
@@ -499,19 +511,105 @@ export function ProfileModal({
                   value="notifications"
                   className="m-0 space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300"
                 >
-                  <header>
-                    <h2 className="text-2xl font-bold tracking-tight text-white">
-                      Notifications
-                    </h2>
-                    <p className="text-zinc-500 text-sm">
-                      Configure how you receive alerts and updates.
-                    </p>
+                  <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <h2 className="text-2xl font-bold tracking-tight text-white">
+                        Notifications
+                      </h2>
+                      <p className="text-zinc-500 text-sm">
+                        Configure how you receive alerts and updates.
+                      </p>
+                    </div>
+                    <Button
+                      onClick={handleUpdateProfile}
+                      disabled={isUpdatingProfile}
+                      className="bg-white text-black hover:bg-zinc-200"
+                    >
+                      {isUpdatingProfile ? "Saving..." : "Save changes"}
+                    </Button>
                   </header>
-                  <div className="p-20 border border-dashed border-white/10 rounded-lg flex flex-col items-center justify-center text-center space-y-2">
-                    <Bell className="w-10 h-10 text-zinc-700" />
-                    <p className="text-zinc-500 text-sm font-medium">
-                      Notification settings are coming soon.
-                    </p>
+
+                  <div className="space-y-10 pt-4">
+                    {/* Email Notifications Section */}
+                    <section className="space-y-6">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500">
+                          <Mail className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-bold text-white">Email Notifications</h3>
+                          <p className="text-xs text-zinc-500">Choose what you want to receive in your inbox.</p>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-4 pl-1">
+                        {[
+                          { id: "mentions", label: "Mentions", desc: "When someone @mentions you in a page or comment.", icon: "@" },
+                          { id: "assignments", label: "Assignments", desc: "When you are assigned to a task or database row.", icon: "📋" },
+                          { id: "comments", label: "Comments", desc: "When someone replies to your comments or activity.", icon: "💬" },
+                          { id: "updates", label: "Product Updates", desc: "Receive tips, news, and new feature announcements.", icon: "🚀" }
+                        ].map((item) => (
+                          <div key={`email-${item.id}`} className="flex items-center justify-between p-4 rounded-xl bg-zinc-900/50 border border-white/5 hover:bg-zinc-900/80 transition-all">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs grayscale">{item.icon}</span>
+                                <Label htmlFor={`email-${item.id}`} className="text-sm font-medium text-zinc-200 cursor-pointer">{item.label}</Label>
+                              </div>
+                              <p className="text-[11px] text-zinc-500 max-w-[400px]">{item.desc}</p>
+                            </div>
+                            <Switch
+                              id={`email-${item.id}`}
+                              checked={(notificationSettings.email as any)[item.id]}
+                              onCheckedChange={(checked) => setNotificationSettings({
+                                ...notificationSettings,
+                                email: { ...notificationSettings.email, [item.id]: checked }
+                              })}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+
+                    <Separator className="bg-white/5" />
+
+                    {/* Push Notifications Section */}
+                    <section className="space-y-6">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500">
+                          <Bell className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-bold text-white">Desktop Notifications</h3>
+                          <p className="text-xs text-zinc-500">Real-time alerts while you are working.</p>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-4 pl-1">
+                        {[
+                          { id: "mentions", label: "Mentions", desc: "Show desktop alert when someone mentions you.", icon: "@" },
+                          { id: "assignments", label: "Assignments", desc: "Show desktop alert for new task assignments.", icon: "📋" },
+                          { id: "comments", label: "Comments", desc: "Show desktop alert for new activity on your items.", icon: "💬" }
+                        ].map((item) => (
+                          <div key={`desktop-${item.id}`} className="flex items-center justify-between p-4 rounded-xl bg-zinc-900/50 border border-white/5 hover:bg-zinc-900/80 transition-all">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs grayscale">{item.icon}</span>
+                                <Label htmlFor={`desktop-${item.id}`} className="text-sm font-medium text-zinc-200 cursor-pointer">{item.label}</Label>
+                              </div>
+                              <p className="text-[11px] text-zinc-500 max-w-[400px]">{item.desc}</p>
+                            </div>
+                            <Switch
+                              id={`desktop-${item.id}`}
+                              checked={(notificationSettings.desktop as any)[item.id]}
+                              onCheckedChange={(checked) => setNotificationSettings({
+                                ...notificationSettings,
+                                desktop: { ...notificationSettings.desktop, [item.id]: checked }
+                              })}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </section>
                   </div>
                 </TabsContent>
 
@@ -597,14 +695,20 @@ export function ProfileModal({
                           All data will be permanently removed.
                         </p>
                       </div>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={handleDeleteAccount}
-                        disabled={isDeletingAccount}
+                      <ConfirmModal
+                        onConfirm={handleDeleteAccount}
+                        title="Delete Account?"
+                        description="Are you absolutely sure you want to delete your entire account? This will delete all your workspaces, pages, and data permanently. This action cannot be undone."
+                        variant="danger"
                       >
-                        {isDeletingAccount ? "Deleting..." : "Delete Account"}
-                      </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          disabled={isDeletingAccount}
+                        >
+                          {isDeletingAccount ? "Deleting..." : "Delete Account"}
+                        </Button>
+                      </ConfirmModal>
                     </div>
                   </section>
                 </TabsContent>

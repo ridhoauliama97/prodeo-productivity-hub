@@ -28,6 +28,7 @@ import { DatabaseTable } from '@/components/database-table'
 import { BoardView } from '@/components/board-view'
 import { GalleryView } from '@/components/gallery-view'
 import { CalendarView } from '@/components/calendar-view'
+import { DatabaseSummary } from "@/components/database-summary"
 import { Button } from '@/components/ui/button'
 import { 
   LayoutGrid, 
@@ -276,14 +277,86 @@ export default function DatabasePageComponent() {
     }
   }
 
+  const isRowCompleted = (props: Record<string, any>) => {
+    const completedStatusValues = [
+      "completed",
+      "accepted",
+      "finished",
+      "done",
+      "accepted/completed",
+    ];
+    return fields.some((f) => {
+      if (f.type !== "select") return false;
+      const val = String(props[f.id] || "").toLowerCase();
+      return completedStatusValues.includes(val);
+    });
+  };
+
   const handleUpdateRow = async (id: string, properties: Record<string, any>) => {
     try {
+      let updatedProperties = { ...properties };
+      const oldRow = rows.find(r => r.id === id);
+      const oldCompleted = oldRow ? isRowCompleted(oldRow.properties) : false;
+      const newCompleted = isRowCompleted(updatedProperties);
+
+      // Auto-fill Finished At and trigger column creation if needed
+      if (newCompleted) {
+        let hasFinishedAt = false;
+        let hasCommentar = false;
+
+        let finishedAtField = fields.find((f) => 
+          f.name.toLowerCase() === "finished at" || 
+          f.name.toLowerCase() === "finished_at" ||
+          f.name.toLowerCase() === "completed at"
+        );
+        let commentarField = fields.find((f) => 
+          f.name.toLowerCase() === "commentar" || 
+          f.name.toLowerCase() === "comments" ||
+          f.name.toLowerCase() === "comment"
+        );
+
+        if (finishedAtField) {
+          const now = new Date();
+          const formattedDate = now.toLocaleDateString("id-ID", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          });
+          const formattedTime = now.toLocaleTimeString("id-ID", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false
+          }).replace(".", ":");
+          
+          const timestamp = `${formattedDate}, ${formattedTime}`;
+          
+          if (!oldCompleted || !updatedProperties[finishedAtField.id]) {
+            updatedProperties[finishedAtField.id] = timestamp;
+            if (finishedAtField.type === "date") {
+              handleUpdateField(finishedAtField.id, { type: "text" });
+            }
+          }
+          hasFinishedAt = true;
+        }
+
+        if (commentarField) {
+          hasCommentar = true;
+        }
+
+        if (!hasFinishedAt) {
+          handleAddField({ name: "Finished At", type: "text" });
+        }
+        if (!hasCommentar) {
+          handleAddField({ name: "Commentar", type: "text" });
+        }
+      }
+
       const { error } = await supabase
         .from('database_rows')
-        .update({ properties })
+        .update({ properties: updatedProperties })
         .eq('id', id)
       if (error) throw error
-      setRows(rows.map((r) => (r.id === id ? { ...r, properties } : r)))
+      setRows(rows.map((r) => (r.id === id ? { ...r, properties: updatedProperties } : r)))
     } catch (err) {
       console.error('Error updating row:', err)
     }
@@ -519,6 +592,9 @@ export default function DatabasePageComponent() {
                           onDeleteRow={handleDeleteRow}
                         />
                       )}
+
+                      {/* AI Summary Section */}
+                      <DatabaseSummary fields={fields} rows={rows} />
                     </>
                   ) : (
                     <div className="text-center py-12 text-muted-foreground">

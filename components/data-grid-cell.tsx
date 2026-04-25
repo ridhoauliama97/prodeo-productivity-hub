@@ -109,9 +109,12 @@ export function DataGridCell({
   }
 
   if (field.type === "date") {
+    // Check if value is a standard YYYY-MM-DD date
+    const isStandardDate = /^\d{4}-\d{2}-\d{2}$/.test(value || "");
+    
     return (
       <Input
-        type="date"
+        type={isStandardDate || !value ? "date" : "text"}
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
         className="h-8 border-none bg-transparent focus-visible:ring-0 px-1"

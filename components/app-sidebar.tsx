@@ -71,6 +71,7 @@ import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase-client";
 import { fetchInboxCount } from "@/lib/api-client";
 import type { Workspace, Page } from "@/lib/types";
+import { ConfirmModal } from "./modals/confirm-modal";
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   workspace: Workspace | null;
@@ -279,16 +280,19 @@ export function AppSidebar({
                   Add sub-page
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDeletePage(page.id);
-                  }}
+                <ConfirmModal
+                  onConfirm={() => onDeletePage(page.id)}
+                  title="Delete Page?"
+                  description="Are you sure you want to delete this page and all its content? This action cannot be undone."
                 >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete
-                </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive cursor-pointer"
+                    onSelect={(e) => e.preventDefault()}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                </ConfirmModal>
               </DropdownMenuContent>
             </DropdownMenu>
             <CollapsibleContent>
@@ -383,16 +387,19 @@ export function AppSidebar({
               Add sub-page
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="text-destructive focus:text-destructive"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDeletePage(page.id);
-              }}
+            <ConfirmModal
+              onConfirm={() => onDeletePage(page.id)}
+              title="Delete Page?"
+              description="Are you sure you want to delete this page and all its content? This action cannot be undone."
             >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Delete
-            </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive cursor-pointer"
+                onSelect={(e) => e.preventDefault()}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </ConfirmModal>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>

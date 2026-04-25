@@ -64,6 +64,21 @@ export function DatabaseTable({
     setIsDirty(false);
   }, [rows]);
 
+  const isRowCompleted = (props: Record<string, any>) => {
+    const completedStatusValues = [
+      "completed",
+      "accepted",
+      "finished",
+      "done",
+      "accepted/completed",
+    ];
+    return fields.some((f) => {
+      if (f.type !== "select") return false;
+      const val = String(props[f.id] || "").toLowerCase();
+      return completedStatusValues.includes(val);
+    });
+  };
+
   const handleUpdateLocalRow = async (
     rowId: string,
     properties: Record<string, any>,
@@ -72,53 +87,73 @@ export function DatabaseTable({
     if (!oldRow) return;
 
     let updatedProperties = { ...properties };
-    const completedValues = ["accepted/completed", "accepted", "completed"];
-    
-    // Helper to check if row is completed
-    const isRowCompleted = (props: Record<string, any>) => {
-      const selectFields = fields.filter((f) => f.type === "select");
-      return selectFields.some((f) => {
-        const val = props[f.id];
-        return typeof val === "string" && completedValues.includes(val.toLowerCase());
-      });
-    };
-
-    const oldCompleted = isRowCompleted(oldRow.properties);
+    const oldProperties = oldRow.properties;
+    const oldCompleted = isRowCompleted(oldProperties);
     const newCompleted = isRowCompleted(updatedProperties);
 
     // Auto-fill Finished At and trigger column creation if needed
-    if (!oldCompleted && newCompleted) {
+    if (newCompleted) {
       let hasFinishedAt = false;
       let hasCommentar = false;
 
       // Find specific fields by name
-      let finishedAtField = fields.find((f) => f.name.toLowerCase() === "finished at" || f.name.toLowerCase() === "finished_at");
-      let commentarField = fields.find((f) => f.name.toLowerCase() === "commentar" || f.name.toLowerCase() === "comments");
+      let finishedAtField = fields.find((f) => 
+        f.name.toLowerCase() === "finished at" || 
+        f.name.toLowerCase() === "finished_at" ||
+        f.name.toLowerCase() === "completed at"
+      );
+      let commentarField = fields.find((f) => 
+        f.name.toLowerCase() === "commentar" || 
+        f.name.toLowerCase() === "comments" ||
+        f.name.toLowerCase() === "comment"
+      );
 
       if (finishedAtField) {
-        if (!updatedProperties[finishedAtField.id]) {
-          updatedProperties[finishedAtField.id] = new Date().toISOString().split('T')[0];
+        const now = new Date();
+        const formattedDate = now.toLocaleDateString("id-ID", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        });
+        const formattedTime = now.toLocaleTimeString("id-ID", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false
+        }).replace(".", ":");
+        
+        const timestamp = `${formattedDate}, ${formattedTime}`;
+        
+        // Update if it's a transition to completed OR the field is empty
+        if (!oldCompleted || !updatedProperties[finishedAtField.id]) {
+          updatedProperties[finishedAtField.id] = timestamp;
+          toast.success("Finished At updated automatically");
+          
+          if (finishedAtField.type === "date") {
+            onUpdateField?.(finishedAtField.id, { type: "text" });
+          }
         }
         hasFinishedAt = true;
       }
+
       if (commentarField) {
         hasCommentar = true;
       }
 
       // If either is missing, trigger onAddField to create them
       if (!hasFinishedAt) {
-        toast.info("Creating 'Finished At' column...", { duration: 2000 });
+        toast.info("Creating 'Finished At' column...");
         onAddField({
           name: "Finished At",
-          type: "date",
+          type: "text",
           properties: {},
           order_index: fields.length,
           is_title_field: false,
           database_id: "",
         });
       }
+      
       if (!hasCommentar) {
-        toast.info("Creating 'Commentar' column...", { duration: 2000 });
+        toast.info("Creating 'Commentar' column...");
         onAddField({
           name: "Commentar",
           type: "text",
@@ -235,15 +270,6 @@ export function DatabaseTable({
   ];
 
   // Logic to separate completed rows for rendering
-  const completedValues = ["accepted/completed", "accepted", "completed"];
-  const isRowCompleted = (props: Record<string, any>) => {
-    const selectFields = fields.filter((f) => f.type === "select");
-    return selectFields.some((f) => {
-      const val = props[f.id];
-      return typeof val === "string" && completedValues.includes(val.toLowerCase());
-    });
-  };
-
   const activeRows = localRows.filter((r) => !isRowCompleted(r.properties));
   const completedRows = localRows.filter((r) => isRowCompleted(r.properties));
   const renderedRows = [...activeRows, ...completedRows];

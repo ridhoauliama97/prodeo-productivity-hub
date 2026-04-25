@@ -36,6 +36,7 @@ import { createClient } from "@/lib/supabase-client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { CropImageDialog } from "./crop-image-dialog";
+import { ConfirmModal } from "./confirm-modal";
 
 interface WorkspaceSettingsModalProps {
   isOpen: boolean;
@@ -90,15 +91,6 @@ export function WorkspaceSettingsModal({
 
   const handleDeleteWorkspace = async () => {
     if (!workspace) return;
-
-    // Warn user before delete
-    if (
-      !window.confirm(
-        "Are you sure you want to delete this workspace? This action cannot be undone and will delete all pages within it.",
-      )
-    ) {
-      return;
-    }
 
     try {
       const { error } = await supabase
@@ -231,14 +223,20 @@ export function WorkspaceSettingsModal({
                           This will delete all pages and data.
                         </p>
                       </div>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={handleDeleteWorkspace}
-                        disabled={!workspace}
+                      <ConfirmModal
+                        onConfirm={handleDeleteWorkspace}
+                        title="Delete Workspace?"
+                        description="Are you sure you want to delete this workspace? This action cannot be undone and will delete all pages within it."
+                        variant="danger"
                       >
-                        Delete Workspace
-                      </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          disabled={!workspace}
+                        >
+                          Delete Workspace
+                        </Button>
+                      </ConfirmModal>
                     </div>
                   </div>
                 </TabsContent>
