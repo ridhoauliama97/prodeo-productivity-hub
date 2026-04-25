@@ -265,7 +265,12 @@ export default function DatabasePageComponent() {
     try {
       const { data, error } = await supabase
         .from('database_rows')
-        .insert({ ...row, database_id: database.id, created_by: user?.id })
+        .insert({ 
+          ...row, 
+          database_id: database.id, 
+          created_by: user?.id,
+          parent_row_id: (row as any).parent_row_id || null
+        })
         .select()
         .single()
       if (error) throw error
@@ -413,6 +418,18 @@ export default function DatabasePageComponent() {
     }
   }
 
+  const handleDeleteRows = async (ids: string[]) => {
+    try {
+      const { error } = await supabase.from('database_rows').delete().in('id', ids)
+      if (error) throw error
+      setRows(rows.filter((r) => !ids.includes(r.id)))
+      toast.success(`${ids.length} rows deleted`)
+    } catch (err) {
+      console.error('Error deleting rows:', err)
+      toast.error('Failed to delete rows')
+    }
+  }
+
   const getBreadcrumbs = () => {
     const crumbs = []
     let currentId = page?.parent_page_id
@@ -553,6 +570,7 @@ export default function DatabasePageComponent() {
                           onAddRow={handleAddRow}
                           onUpdateRow={handleUpdateRow}
                           onDeleteRow={handleDeleteRow}
+                          onDeleteRows={handleDeleteRows}
                           onDeleteField={handleDeleteField}
                           onUpdateField={handleUpdateField}
                           onSave={handleSaveAll}

@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Trash2, Play } from "lucide-react";
+import { Plus, Trash2, Play, ChevronDown, CornerDownRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { DatabaseField, DatabaseRow } from "@/lib/types";
@@ -36,7 +36,9 @@ export function GalleryView({
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {rows.map((row) => {
+        {rows.filter(r => !r.parent_row_id).map((row) => {
+          const children = rows.filter(r => r.parent_row_id === row.id);
+          const hasChildren = children.length > 0;
           // Find first field with type 'file' (Image/Video) that has a value
           const mediaField = fields.find(
             (f) => f.type === "file" && row.properties[f.id],
@@ -121,6 +123,32 @@ export function GalleryView({
                           </div>
                         </div>
                       ))}
+                    
+                    {hasChildren && (
+                      <div className="mt-4 pt-4 border-t border-dashed border-border/20">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                            Subtasks ({children.length})
+                          </span>
+                        </div>
+                        <div className="space-y-2 pl-1">
+                          {children.slice(0, 3).map((child) => (
+                            <div key={child.id} className="flex items-center gap-2">
+                              <CornerDownRight className="w-3 h-3 text-muted-foreground/40" />
+                              <span className="text-xs truncate text-muted-foreground">
+                                {titleField ? child.properties[titleField.id] || "Untitled" : "Untitled"}
+                              </span>
+                            </div>
+                          ))}
+                          {children.length > 3 && (
+                            <div className="text-[10px] text-muted-foreground/50 pl-5">
+                              + {children.length - 3} more subtasks
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="flex justify-end pt-4 border-t border-border/10">
                     <button

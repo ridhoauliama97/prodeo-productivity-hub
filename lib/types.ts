@@ -82,6 +82,7 @@ export interface DatabaseRow {
   id: string
   database_id: string
   properties: Record<string, any>
+  parent_row_id?: string
   created_by?: string
   created_at: string
   updated_at: string

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2, Play } from "lucide-react";
+import { Plus, Trash2, Play, ChevronDown, ChevronRight, CornerDownRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { DatabaseField, DatabaseRow } from "@/lib/types";
@@ -39,7 +39,8 @@ export function BoardView({
 
   // Group rows if groupByField is specified
   const getColumns = () => {
-    if (!groupByField) return { "All": rows };
+    const rootRows = rows.filter(r => !r.parent_row_id);
+    if (!groupByField) return { "All": rootRows };
     
     const columns: Record<string, DatabaseRow[]> = {};
     
@@ -65,8 +66,8 @@ export function BoardView({
     // Always ensure "Uncategorized" exists if there are rows without a status
     columns["Uncategorized"] = [];
 
-    // Distribute rows into columns
-    rows.forEach(row => {
+    // Distribute root rows into columns
+    rootRows.forEach(row => {
       let status = row.properties[groupByField.id] || "Uncategorized";
       
       // Match case-insensitive for standard statuses to avoid duplicate columns like "New" and "new"
@@ -160,6 +161,9 @@ export function BoardView({
                 /\.(jpeg|jpg|gif|png|webp|svg)/i,
               );
               const isVideo = primaryUrl?.match(/\.(mp4|webm|ogg)/i);
+              
+              const children = rows.filter(r => r.parent_row_id === row.id);
+              const hasChildren = children.length > 0;
 
               return (
                 <Card
@@ -234,6 +238,32 @@ export function BoardView({
                             </div>
                           </div>
                         ))}
+
+                      {hasChildren && (
+                        <div className="mt-4 pt-3 border-t border-dashed border-border/50">
+                          <div className="flex items-center gap-1.5 mb-2">
+                            <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                              Subtasks ({children.length})
+                            </span>
+                          </div>
+                          <div className="space-y-1.5 pl-1">
+                            {children.slice(0, 3).map((child) => (
+                              <div key={child.id} className="flex items-center gap-2 group/sub">
+                                <CornerDownRight className="w-3 h-3 text-muted-foreground/40" />
+                                <span className="text-[11px] truncate text-muted-foreground group-hover/sub:text-foreground transition-colors">
+                                  {titleField ? child.properties[titleField.id] || "Untitled" : "Untitled"}
+                                </span>
+                              </div>
+                            ))}
+                            {children.length > 3 && (
+                              <div className="text-[10px] text-muted-foreground/60 pl-5 font-medium">
+                                + {children.length - 3} more subtasks
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="flex justify-end pt-2">
                       <button
