@@ -98,6 +98,13 @@ export default function WorkspacesPage() {
             priority
           />
           <div className="flex gap-2">
+            {user?.email === 'superadmin@example.com' && (
+              <Button variant="default" size="sm" asChild>
+                <Link href="/admin">
+                  Admin Dashboard
+                </Link>
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"

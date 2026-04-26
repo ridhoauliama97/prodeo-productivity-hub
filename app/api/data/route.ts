@@ -162,42 +162,73 @@ export async function POST(req: NextRequest) {
         .ilike('email', email)
         .single()
       
-      if (profileError || !profile) {
-        // User not found, create an invitation instead
-        const { data: invite, error: inviteError } = await admin
-          .from('invitations')
-          .insert({
-            workspace_id,
-            email,
-            inviter_id: user.id,
-            role: 'member'
-          })
-          .select('token')
-          .single()
+      // Create invitation regardless of whether user exists
+      const { data: invite, error: inviteError } = await admin
+        .from('invitations')
+        .insert({
+          workspace_id,
+          email,
+          inviter_id: user.id,
+          role: 'member'
+        })
+        .select('token')
+        .single()
 
-        if (inviteError) {
-          if (inviteError.code === '23505') { // Unique constraint violation (already invited)
-            const { data: existingInvite } = await admin
-              .from('invitations')
-              .select('token')
-              .eq('workspace_id', workspace_id)
-              .eq('email', email)
-              .single()
-            
-            return NextResponse.json({ 
-              invited: false, 
-              invitation_token: existingInvite?.token,
-              message: 'An invitation already exists for this email.' 
-            })
-          }
-          return NextResponse.json({ error: inviteError.message }, { status: 500 })
+      if (inviteError) {
+        if (inviteError.code === '23505') { // Unique constraint violation (already invited)
+          const { data: existingInvite } = await admin
+            .from('invitations')
+            .select('token')
+            .eq('workspace_id', workspace_id)
+            .eq('email', email)
+            .single()
+          
+          return NextResponse.json({ 
+            invited: false, 
+            invitation_token: existingInvite?.token,
+            message: 'An invitation already exists for this email.' 
+          })
+        }
+        return NextResponse.json({ error: inviteError.message }, { status: 500 })
+      }
+
+      // Fetch workspace and inviter info for notifications/emails
+      const { data: workspace } = await admin.from('workspaces').select('name').eq('id', workspace_id).single()
+      const { data: inviter } = await admin.from('user_profiles').select('full_name').eq('id', user.id).single()
+
+      if (profile) {
+        // User exists! Check if they are already a member
+        const { data: existingMember } = await admin
+          .from('workspace_members')
+          .select('id')
+          .eq('workspace_id', workspace_id)
+          .eq('user_id', profile.id)
+          .single()
+        
+        if (existingMember) {
+          // If already a member, remove the invitation we just created to keep it clean
+          await admin.from('invitations').delete().eq('token', invite.token)
+          return NextResponse.json({ error: 'User is already a member of this workspace.' }, { status: 409 })
         }
 
-        // Try to send automatic email
+        // Send an in-app notification
+        await admin.from('notifications').insert({
+          user_id: profile.id,
+          title: `Workspace Invitation: ${workspace?.name || 'a workspace'}`,
+          message: JSON.stringify({
+            type: 'invite',
+            token: invite.token,
+            workspaceName: workspace?.name || 'a workspace',
+            inviterName: inviter?.full_name || 'Someone',
+            workspaceId: workspace_id
+          }),
+          read: false
+        })
+
+        return NextResponse.json({ success: true, message: 'Invitation sent via in-app notification.' })
+      } else {
+        // User not found, try to send automatic email
         try {
-          const { data: workspace } = await admin.from('workspaces').select('name').eq('id', workspace_id).single()
-          const { data: inviter } = await admin.from('user_profiles').select('full_name').eq('id', user.id).single()
-          
           const origin = req.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
           const inviteLink = `${origin}/invite/${invite.token}`
 
@@ -209,38 +240,15 @@ export async function POST(req: NextRequest) {
           })
         } catch (emailErr) {
           console.error('Failed to send automatic invitation email:', emailErr)
-          // Don't fail the whole request if email fails, as the link is still generated
         }
 
         return NextResponse.json({ 
+          success: true,
           invited: false, 
           invitation_token: invite.token,
           message: 'User not found. An invitation email has been sent.' 
         })
       }
-      
-      // Check if already a member
-      const { data: existing } = await admin
-        .from('workspace_members')
-        .select('id')
-        .eq('workspace_id', workspace_id)
-        .eq('user_id', profile.id)
-        .single()
-      
-      if (existing) {
-        return NextResponse.json({ error: 'User is already a member of this workspace.' }, { status: 409 })
-      }
-      
-      const { error: insertError } = await admin
-        .from('workspace_members')
-        .insert({
-          workspace_id,
-          user_id: profile.id,
-          role: 'member',
-        })
-      
-      if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 })
-      return NextResponse.json({ success: true })
     }
 
     case 'update_member_role': {
@@ -274,8 +282,8 @@ export async function POST(req: NextRequest) {
         .insert({
           user_id,
           title,
-          content,
-          link,
+          message: content,
+          action_url: link || null,
           read: false
         })
 

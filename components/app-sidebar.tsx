@@ -201,6 +201,38 @@ export function AppSidebar({
     };
   }, [user]);
 
+  const [emailUnreadCount, setEmailUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!user || !workspace?.id) return;
+    const supabase = createClient();
+    
+    const loadEmailCount = async () => {
+      const { count } = await supabase
+        .from('emails')
+        .select('*', { count: 'exact', head: true })
+        .eq('workspace_id', workspace.id)
+        .eq('receiver_id', user.id)
+        .eq('folder', 'inbox')
+        .eq('is_read', false);
+      if (count !== null) setEmailUnreadCount(count);
+    };
+    loadEmailCount();
+
+    const channel = supabase
+      .channel('sidebar-email-badge')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'emails', filter: `receiver_id=eq.${user.id}` },
+        () => loadEmailCount()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, workspace?.id]);
+
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
@@ -579,6 +611,13 @@ export function AppSidebar({
                     <span>Email</span>
                   </Link>
                 </SidebarMenuButton>
+                {emailUnreadCount > 0 && (
+                  <SidebarMenuBadge>
+                    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold leading-none text-white bg-blue-500 rounded-full">
+                      {emailUnreadCount > 99 ? "99+" : emailUnreadCount}
+                    </span>
+                  </SidebarMenuBadge>
+                )}
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Chat">

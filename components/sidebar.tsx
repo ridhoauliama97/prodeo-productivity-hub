@@ -292,7 +292,7 @@ export function Sidebar({
   if (isCollapsed) {
     return (
       <div
-        className="w-12 h-screen flex flex-col items-center py-4 border-r bg-sidebar transition-all cursor-pointer hover:bg-sidebar-accent"
+        className="shrink-0 w-12 h-screen flex flex-col items-center py-4 border-r bg-sidebar transition-all cursor-pointer hover:bg-sidebar-accent"
         onClick={() => setIsCollapsed(false)}
       >
         <ChevronRight className="w-4 h-4 text-sidebar-foreground/50" />
@@ -301,7 +301,7 @@ export function Sidebar({
   }
 
   return (
-    <aside className="w-64 h-screen flex flex-col border-r bg-sidebar text-sidebar-foreground transition-all relative group/sidebar">
+    <aside className="shrink-0 w-64 h-screen flex flex-col border-r bg-sidebar text-sidebar-foreground transition-all relative group/sidebar">
       <div
         onClick={() => setIsCollapsed(true)}
         className="absolute right-0 top-0 bottom-0 w-1 hover:bg-sidebar-primary/20 cursor-col-resize z-50 transition-colors opacity-0 group-hover/sidebar:opacity-100 flex items-center justify-center"

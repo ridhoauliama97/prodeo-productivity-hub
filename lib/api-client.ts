@@ -10,7 +10,7 @@ async function getAuthToken(): Promise<string | null> {
   return data.session?.access_token || null
 }
 
-async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
+export async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const token = await getAuthToken()
   if (!token) {
     throw new Error('Not authenticated')
