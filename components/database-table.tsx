@@ -515,12 +515,12 @@ export function DatabaseTable({
 
       {/* Bulk actions bar */}
       {selectedRowIds.size > 0 && (
-        <div className="sticky top-0 z-30 flex items-center justify-between gap-4 px-6 py-3 mb-4 bg-zinc-900 border border-white/10 rounded-xl shadow-2xl animate-in slide-in-from-top-4 duration-500 ring-1 ring-white/5">
+        <div className="sticky top-0 z-30 flex items-center justify-between gap-4 px-6 py-3 mb-4 bg-zinc-950 dark:bg-zinc-900 border border-zinc-800 dark:border-white/10 rounded-xl shadow-2xl animate-in slide-in-from-top-4 duration-500 ring-1 ring-black/5 dark:ring-white/5">
           <div className="flex items-center gap-3">
             <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/20 text-primary">
               <Check className="w-3.5 h-3.5" />
             </div>
-            <span className="text-sm font-semibold text-white">
+            <span className="text-sm font-semibold text-zinc-100 dark:text-white">
               {selectedRowIds.size} {selectedRowIds.size === 1 ? 'task' : 'tasks'} selected
             </span>
           </div>
@@ -529,7 +529,7 @@ export function DatabaseTable({
               variant="ghost"
               size="sm"
               onClick={() => setSelectedRowIds(new Set())}
-              className="text-zinc-400 hover:text-white hover:bg-white/5 text-xs font-medium"
+              className="text-zinc-400 hover:text-zinc-100 hover:bg-white/5 text-xs font-medium"
             >
               Cancel
             </Button>

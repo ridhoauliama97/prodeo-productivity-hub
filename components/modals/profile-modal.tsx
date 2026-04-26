@@ -137,6 +137,23 @@ export function ProfileModal({
       }
 
       console.log("Updating user profile record...");
+      
+      // Check if username is taken by another user
+      if (username) {
+        const { data: existingUser, error: checkError } = await supabase
+          .from("user_profiles")
+          .select("id")
+          .eq("username", username)
+          .neq("id", user.id)
+          .maybeSingle();
+
+        if (existingUser) {
+          toast.error("Username is already taken. Please choose another one.");
+          setIsUpdatingProfile(false);
+          return;
+        }
+      }
+
       const { error } = await supabase.from("user_profiles").upsert({
         id: user.id,
         first_name: firstName,
@@ -154,6 +171,13 @@ export function ProfileModal({
           "Profile Update Error Details:",
           JSON.stringify(error, null, 2),
         );
+        
+        if (error.code === "23505") {
+          toast.error("Username is already taken. Please choose another one.");
+          setIsUpdatingProfile(false);
+          return;
+        }
+        
         throw error;
       }
 

@@ -59,44 +59,40 @@ export function GalleryView({
               key={row.id}
               className="group hover:shadow-2xl transition-all duration-500 overflow-hidden border-border/40 bg-card/40 backdrop-blur-md shadow-lg flex flex-col"
             >
-              <div
-                className="relative h-48 w-full bg-muted/30 overflow-hidden flex items-center justify-center cursor-pointer"
-                onClick={() =>
-                  mediaUrls.length > 0 &&
-                  setPreviewMedia({ urls: mediaUrls, index: 0 })
-                }
-              >
-                {primaryUrl ? (
-                  <>
-                    {isVideo ? (
-                      <div className="relative w-full h-full">
-                        <video
-                          src={primaryUrl}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                        />
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-all duration-500">
-                          <div className="p-4 rounded-full bg-black/40 text-white backdrop-blur-md opacity-0 group-hover:opacity-100 transform scale-90 group-hover:scale-100 transition-all duration-500">
-                            <Play className="w-8 h-8 fill-white" />
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <img
-                        src={primaryUrl}
-                        alt="Cover"
+              {(isImage || isVideo) && (
+                <div
+                  className="relative h-48 w-full bg-muted/30 overflow-hidden flex items-center justify-center cursor-pointer"
+                  onClick={() =>
+                    mediaUrls.length > 0 &&
+                    setPreviewMedia({ urls: mediaUrls, index: 0 })
+                  }
+                >
+                  {isVideo ? (
+                    <div className="relative w-full h-full">
+                      <video
+                        src={primaryUrl!}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                       />
-                    )}
-                    {mediaUrls.length > 1 && (
-                      <div className="absolute bottom-3 right-3 px-2 py-1 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold rounded-md z-10">
-                        +{mediaUrls.length - 1} more
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-all duration-500">
+                        <div className="p-4 rounded-full bg-black/40 text-white backdrop-blur-md opacity-0 group-hover:opacity-100 transform scale-90 group-hover:scale-100 transition-all duration-500">
+                          <Play className="w-8 h-8 fill-white" />
+                        </div>
                       </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="w-full h-full bg-linear-to-br from-primary/5 via-background to-primary/10 group-hover:opacity-60 transition-opacity" />
-                )}
-              </div>
+                    </div>
+                  ) : (
+                    <img
+                      src={primaryUrl!}
+                      alt="Cover"
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                    />
+                  )}
+                  {mediaUrls.length > 1 && (
+                    <div className="absolute bottom-3 right-3 px-2 py-1 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold rounded-md z-10">
+                      +{mediaUrls.length - 1} more
+                    </div>
+                  )}
+                </div>
+              )}
               <CardContent className="p-5 flex-1 flex flex-col">
                 <div className="space-y-4 flex-1">
                   {titleField && (

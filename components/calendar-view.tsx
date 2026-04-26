@@ -139,6 +139,8 @@ export function CalendarView({
                           ? [rawValue]
                           : [];
                       const primaryUrl = mediaUrls[0] || null;
+                      const isImage = primaryUrl?.match(/\.(jpeg|jpg|gif|png|webp|svg)/i);
+                      const isVideo = primaryUrl?.match(/\.(mp4|webm|ogg)/i);
 
                       return (
                         <div
@@ -149,9 +151,9 @@ export function CalendarView({
                             setPreviewMedia({ urls: mediaUrls, index: 0 })
                           }
                         >
-                          {primaryUrl && (
+                          {(isImage || isVideo) && (
                             <div className="relative h-12 w-full bg-muted rounded overflow-hidden">
-                              {primaryUrl.match(/\.(mp4|webm|ogg)/i) ? (
+                              {isVideo ? (
                                 <div className="w-full h-full relative">
                                   <video
                                     src={primaryUrl}

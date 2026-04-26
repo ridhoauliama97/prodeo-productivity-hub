@@ -33,7 +33,6 @@ export const DatabaseSummary = ({ fields, rows }: DatabaseSummaryProps) => {
     });
   };
 
-  // Basic Stats (Root Tasks only)
   const rootRows = rows.filter((r) => !r.parent_row_id);
   const totalRootTasks = rootRows.length;
   const completedRootTasks = rootRows.filter((r) =>
@@ -42,7 +41,6 @@ export const DatabaseSummary = ({ fields, rows }: DatabaseSummaryProps) => {
   const overallPercentage =
     totalRootTasks > 0 ? (completedRootTasks / totalRootTasks) * 100 : 0;
 
-  // Parent vs Subtask Logic (Rows that have children)
   const parentRows = rows.filter((r) =>
     rows.some((child) => child.parent_row_id === r.id),
   );
@@ -82,27 +80,18 @@ export const DatabaseSummary = ({ fields, rows }: DatabaseSummaryProps) => {
   const generateSummary = () => {
     setIsGenerating(true);
     setTimeout(() => {
-      const titleField = fields.find((f) => f.is_title_field) || fields[0];
-      const topParents = parentRows
-        .slice(0, 3)
-        .map((r) => r.properties[titleField?.id || ""] || "Unnamed Parent");
-
-      let text = `Analisis Data: Dari total ${totalRootTasks} tugas utama, ${completedRootTasks} telah selesai (${overallPercentage.toFixed(1)}%).\n\n`;
+      let text = `[Analysis] Dari total ${totalRootTasks} tugas utama, sebanyak ${completedRootTasks} sudah berhasil diselesaikan (${overallPercentage.toFixed(1)}%). Secara keseluruhan, progres kerja Anda saat ini terlihat ${overallPercentage > 80 ? "sangat bagus" : overallPercentage > 50 ? "cukup baik" : "masih awal"}.\n\n`;
 
       if (parentRows.length > 0) {
-        text += `Struktur Hirarki: Terdapat ${parentRows.length} tugas yang bertindak sebagai induk. `;
-        text += `${fullyCompletedParentsCount} di antaranya telah menyelesaikan seluruh sub-tugasnya. `;
-        text += `Rata-rata progres penyelesaian sub-tugas secara kolektif adalah ${avgParentProgress.toFixed(1)}%.\n\n`;
+        text += `[Hierarchy] Untuk tugas yang memiliki sub-tugas, ada ${fullyCompletedParentsCount} dari ${parentRows.length} tugas induk yang sudah tuntas sepenuhnya. Rata-rata progres sub-tugas Anda saat ini adalah ${avgParentProgress.toFixed(1)}%.\n\n`;
       }
 
       if (overallPercentage === 100) {
-        text += "Status: Sempurna. Seluruh alur kerja telah tuntas.";
+        text += "[Status] Luar Biasa: Semua target sudah tercapai 100%. Tidak ada lagi tugas yang tertunda!";
       } else if (avgParentProgress > 70) {
-        text +=
-          "Status: Progres Kuat. Fokus pada penyelesaian beberapa sub-tugas terakhir untuk menutup milestone.";
+        text += "[Status] Progres Bagus: Sebagian besar tugas sudah beres. Tinggal selesaikan beberapa sub-tugas lagi untuk mencapai target penuh.";
       } else {
-        text +=
-          "Status: Perlu Perhatian. Distribusi tugas pada sub-tugas masih belum optimal.";
+        text += "[Status] Perlu Fokus: Masih ada cukup banyak tugas yang belum selesai. Yuk, mulai fokus selesaikan tugas-tugas yang masih tertunda.";
       }
 
       setSummary(text);
@@ -118,144 +107,173 @@ export const DatabaseSummary = ({ fields, rows }: DatabaseSummaryProps) => {
 
   if (rows.length === 0) return null;
 
-  return (
-    <Card className="relative mt-8 bg-zinc-950/50 border-white/5 overflow-hidden group">
-      <div className="absolute inset-0 bg-linear-to-br from-indigo-500/5 via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+  // Helper to parse summary
+  const getSection = (marker: string) => {
+    if (!summary) return null;
+    const regex = new RegExp(`\\[${marker}\\]\\s*(.*?)(?=\\n\\n|\\[|$)`, "s");
+    const match = summary.match(regex);
+    return match ? match[1].trim() : null;
+  };
 
-      <div className="p-6 relative">
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Left: Enhanced Stats */}
-          <div className="flex-1 space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Overall Tasks */}
-              <div className="p-4 rounded-xl bg-white/5 border border-white/5 space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-500/10 rounded-lg">
-                    <CheckCircle2 className="w-4 h-4 text-green-500" />
+  const analysisText = getSection("Analysis");
+  const hierarchyText = getSection("Hierarchy");
+  const statusText = getSection("Status");
+
+  const statusColor = statusText?.includes("Sempurna") 
+    ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" 
+    : statusText?.includes("Progres Kuat")
+      ? "bg-blue-500/10 text-blue-500 border-blue-500/20"
+      : "bg-amber-500/10 text-amber-500 border-amber-500/20";
+
+  return (
+    <Card className="relative mt-8 bg-card dark:bg-zinc-950 border-border/50 dark:border-white/5 overflow-hidden group shadow-xl transition-all duration-500 hover:shadow-indigo-500/5">
+      {/* Decorative gradient overlay */}
+      <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-indigo-500/5 blur-[100px] rounded-full -mr-48 -mt-48 opacity-50 pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-purple-500/5 blur-[100px] rounded-full -ml-48 -mb-48 opacity-50 pointer-events-none" />
+
+      <div className="p-8 relative">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+          
+          {/* LEFT: Dashboard Widgets (5/12 cols) */}
+          <div className="lg:col-span-5 space-y-6 flex flex-col">
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingUp className="w-4 h-4 text-primary" />
+              <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground/80">Project Analytics</h3>
+            </div>
+            
+            <div className="grid grid-cols-1 gap-4 flex-1">
+              {/* Task Completion Widget */}
+              <div className="p-5 rounded-2xl bg-muted/20 dark:bg-white/[0.02] border border-border/40 dark:border-white/5 backdrop-blur-sm transition-all hover:bg-muted/30 dark:hover:bg-white/[0.04]">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-2.5 bg-emerald-500/10 rounded-xl">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500" />
                   </div>
-                  <h4 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">
-                    Tasks Completed
-                  </h4>
+                  <div className="text-right">
+                    <span className="text-2xl font-black tracking-tight">{overallPercentage.toFixed(0)}%</span>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase">Completion</p>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <div className="flex items-baseline justify-between w-full">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-bold text-white">
-                        {completedRootTasks}
-                      </span>
-                      <span className="text-xs text-zinc-500">
-                        / {totalRootTasks} Total
-                      </span>
-                    </div>
-                    <span className="text-sm font-semibold text-white">
-                      {overallPercentage.toFixed(0)}%
-                    </span>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-medium text-muted-foreground">Primary Tasks</span>
+                    <span className="font-bold">{completedRootTasks} <span className="text-muted-foreground/50 font-normal">/ {totalRootTasks}</span></span>
                   </div>
-                  <Progress
-                    value={overallPercentage}
-                    className="h-1 bg-zinc-800"
-                  />
+                  <Progress value={overallPercentage} className="h-2 bg-muted dark:bg-zinc-800" />
                 </div>
               </div>
 
-              {/* Parent Tasks */}
-              <div className="p-4 rounded-xl bg-white/5 border border-white/5 space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-indigo-500/10 rounded-lg">
-                    <TrendingUp className="w-4 h-4 text-indigo-500" />
+              {/* Hierarchy Widget */}
+              <div className="p-5 rounded-2xl bg-muted/20 dark:bg-white/[0.02] border border-border/40 dark:border-white/5 backdrop-blur-sm transition-all hover:bg-muted/30 dark:hover:bg-white/[0.04]">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-2.5 bg-indigo-500/10 rounded-xl">
+                    <Sparkles className="w-5 h-5 text-indigo-500" />
                   </div>
-                  <h4 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">
-                    Parent Tasks Done
-                  </h4>
+                  <div className="text-right">
+                    <span className="text-2xl font-black tracking-tight">{avgParentProgress.toFixed(0)}%</span>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase">Hierarchy Progress</p>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-bold text-white">
-                      {fullyCompletedParentsCount}
-                    </span>
-                    <span className="text-xs text-zinc-500">
-                      / {parentRows.length} Parents
-                    </span>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-medium text-muted-foreground">Induk Tuntas</span>
+                    <span className="font-bold">{fullyCompletedParentsCount} <span className="text-muted-foreground/50 font-normal">/ {parentRows.length}</span></span>
                   </div>
-                  <Progress
-                    value={avgParentProgress}
-                    className="h-1 bg-zinc-800"
-                  />
-                  <p className="text-[10px] text-zinc-500 mt-1">
-                    Avg. Subtask Progress: {avgParentProgress.toFixed(0)}%
-                  </p>
+                  <Progress value={avgParentProgress} className="h-2 bg-muted dark:bg-zinc-800" />
                 </div>
               </div>
             </div>
 
-            {/* Sub-summary counts */}
-            <div className="flex flex-wrap gap-4 px-1">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-blue-500" />
-                <span className="text-xs text-zinc-400">
-                  Root Parents: {rootParents.length}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-purple-500" />
-                <span className="text-xs text-zinc-400">
-                  Sub-parents: {subParents.length}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span className="text-xs text-zinc-400">
-                  Sub-tasks:{" "}
-                  {rows.length - rows.filter((r) => !r.parent_row_id).length}
-                </span>
-              </div>
+            {/* Micro Stats Bar */}
+            <div className="flex items-center justify-between px-2 pt-2">
+              {[
+                { label: "Root", count: rootParents.length, color: "bg-blue-500" },
+                { label: "Sub-parent", count: subParents.length, color: "bg-purple-500" },
+                { label: "Sub-task", count: rows.length - rootRows.length, color: "bg-emerald-500" }
+              ].map((s) => (
+                <div key={s.label} className="flex items-center gap-1.5">
+                  <div className={cn("w-1.5 h-1.5 rounded-full", s.color)} />
+                  <span className="text-[10px] font-bold text-muted-foreground/70 uppercase">{s.label}: {s.count}</span>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Right: AI Actions */}
-          <div className="flex-1 flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-indigo-400">
-                <Sparkles className="w-4 h-4 animate-pulse" />
-                <span className="text-xs font-bold uppercase tracking-wider">
-                  AI Summarizer
-                </span>
+          {/* RIGHT: AI Summary Panel (7/12 cols) */}
+          <div className="lg:col-span-7 flex flex-col gap-4">
+            <div className="flex items-center justify-between border-b border-border/50 dark:border-white/5 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <BrainCircuit className="w-4 h-4 text-primary" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-foreground">AI Intelligence</h4>
+                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Real-time Summary</p>
+                </div>
               </div>
               <Button
                 onClick={generateSummary}
                 disabled={isGenerating}
                 variant="ghost"
                 size="sm"
-                className="h-7 text-[10px] bg-white/5 hover:bg-white/10 text-white gap-1.5"
+                className="h-8 text-xs hover:bg-muted dark:hover:bg-white/5 gap-2 px-3 border border-border/50"
               >
-                <BrainCircuit
-                  className={cn("w-3 h-3", isGenerating && "animate-spin")}
-                />
-                Refresh Analysis
+                <Sparkles className={cn("w-3 h-3", isGenerating && "animate-spin")} />
+                Refresh
               </Button>
             </div>
 
-            <div className="relative min-h-[120px] p-4 bg-zinc-900/50 border border-white/5 rounded-xl">
+            <div className="flex-1 relative overflow-hidden flex flex-col gap-4">
               {isGenerating ? (
-                <div className="absolute inset-0 flex items-center justify-center gap-3">
-                  <div className="flex gap-1">
-                    <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                    <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                    <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce" />
+                <div className="flex-1 flex flex-col items-center justify-center gap-4 py-10">
+                  <div className="flex gap-1.5">
+                    {[0, 0.15, 0.3].map((delay, i) => (
+                      <div 
+                        key={i} 
+                        className="w-2 h-2 bg-primary rounded-full animate-bounce" 
+                        style={{ animationDelay: `-${delay}s` }} 
+                      />
+                    ))}
                   </div>
-                  <span className="text-xs text-zinc-500 font-medium italic">
-                    AI sedang menganalisis hirarki tugas...
-                  </span>
+                  <p className="text-sm text-muted-foreground font-medium italic animate-pulse">Menghasilkan analisis data cerdas...</p>
                 </div>
               ) : summary ? (
-                <p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-line animate-in fade-in slide-in-from-bottom-1 duration-500">
-                  {summary}
-                </p>
+                <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-700">
+                  {/* Analysis Block */}
+                  {analysisText && (
+                    <div className="flex gap-4 items-start group/block">
+                      <div className="mt-1.5 w-1 h-1 rounded-full bg-primary/40 group-hover/block:bg-primary transition-colors" />
+                      <p className="text-sm text-foreground/80 leading-relaxed font-medium">
+                        {analysisText}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Hierarchy Block */}
+                  {hierarchyText && (
+                    <div className="flex gap-4 items-start group/block">
+                      <div className="mt-1.5 w-1 h-1 rounded-full bg-primary/40 group-hover/block:bg-primary transition-colors" />
+                      <p className="text-sm text-foreground/80 leading-relaxed font-medium">
+                        {hierarchyText}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Status Badge Block */}
+                  {statusText && (
+                    <div className={cn(
+                      "mt-4 p-4 rounded-xl border flex items-center gap-4 transition-all duration-500",
+                      statusColor
+                    )}>
+                      <Sparkles className="w-5 h-5 shrink-0" />
+                      <p className="text-sm font-bold leading-snug">
+                        {statusText}
+                      </p>
+                    </div>
+                  )}
+                </div>
               ) : (
-                <div className="flex items-center justify-center h-full">
-                  <p className="text-xs text-zinc-500 italic">
-                    Klik tombol untuk merangkum analisis tugas.
-                  </p>
+                <div className="flex-1 flex items-center justify-center border-2 border-dashed border-border/20 rounded-2xl">
+                  <p className="text-sm text-muted-foreground italic">Klik refresh untuk memulai analisis.</p>
                 </div>
               )}
             </div>

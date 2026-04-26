@@ -5,6 +5,7 @@ import { Plus, Trash2, Play, ChevronDown, ChevronRight, CornerDownRight } from "
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { DatabaseField, DatabaseRow } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import { DataGridCell } from "./data-grid-cell";
 import { MediaPreview } from "./media-preview";
 
@@ -92,13 +93,13 @@ export function BoardView({
 
   const getStatusColor = (status: string) => {
     const s = status.toLowerCase();
-    if (s.includes("new")) return "bg-blue-500/10 text-blue-500 border-blue-500/20";
-    if (s.includes("progress")) return "bg-amber-500/10 text-amber-500 border-amber-500/20";
-    if (s.includes("review")) return "bg-purple-500/10 text-purple-500 border-purple-500/20";
-    if (s.includes("reject")) return "bg-red-500/10 text-red-500 border-red-500/20";
+    if (s.includes("new")) return "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20";
+    if (s.includes("progress")) return "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20";
+    if (s.includes("review")) return "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20";
+    if (s.includes("reject")) return "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20";
     if (s.includes("complete") || s.includes("done") || s.includes("finish") || s.includes("accept")) 
-      return "bg-green-500/10 text-green-500 border-green-500/20";
-    return "bg-zinc-500/10 text-zinc-500 border-zinc-500/20";
+      return "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20";
+    return "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20";
   };
 
   const handleDragStart = (e: React.DragEvent, rowId: string) => {
@@ -132,12 +133,23 @@ export function BoardView({
         return (
           <div
             key={group}
-            className="flex flex-col shrink-0 w-80 bg-zinc-900/40 border border-white/5 p-4 rounded-xl"
+            className="flex flex-col shrink-0 w-80 bg-muted/40 dark:bg-zinc-900/40 border border-border dark:border-white/5 p-4 rounded-xl"
             onDrop={(e) => handleDrop(e, group)}
             onDragOver={handleDragOver}
           >
-            <div className={`flex items-center gap-2 mb-4 px-3 py-1.5 rounded-lg border ${statusStyle.split(' ').slice(0, 2).join(' ')} ${statusStyle.split(' ')[2]}`}>
-              <div className={`w-2 h-2 rounded-full ${statusStyle.split(' ')[1].replace('text-', 'bg-')}`} />
+            <div className={cn(
+              "flex items-center gap-2 mb-4 px-3 py-1.5 rounded-lg border",
+              statusStyle
+            )}>
+              <div className={cn(
+                "w-2 h-2 rounded-full",
+                statusStyle.includes("blue") && "bg-blue-500",
+                statusStyle.includes("amber") && "bg-amber-500",
+                statusStyle.includes("purple") && "bg-purple-500",
+                statusStyle.includes("red") && "bg-red-500",
+                statusStyle.includes("green") && "bg-green-500",
+                statusStyle.includes("zinc") && "bg-zinc-500"
+              )} />
               <h3 className="font-bold text-xs uppercase tracking-wider">{group}</h3>
               <span className="ml-auto text-[10px] font-bold opacity-60">{groupRows.length}</span>
             </div>
@@ -172,40 +184,38 @@ export function BoardView({
                   onDragStart={(e) => handleDragStart(e, row.id)}
                   className="group hover:shadow-lg active:scale-[0.98] active:rotate-1 transition-all cursor-grab bg-background overflow-hidden border-border/50"
                 >
-                  <div
-                    className="relative h-32 w-full bg-muted/30 overflow-hidden flex items-center justify-center cursor-pointer"
-                    onClick={() =>
-                      mediaUrls.length > 0 &&
-                      setPreviewMedia({ urls: mediaUrls, index: 0 })
-                    }
-                  >
-                    {primaryUrl ? (
-                      <>
-                        {isVideo ? (
-                          <div className="relative w-full h-full">
-                            <video
-                              src={primaryUrl}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                            />
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Play className="w-6 h-6 fill-white text-white" />
-                            </div>
-                          </div>
-                        ) : (
-                          <img
-                            src={primaryUrl}
-                            alt="Cover"
+                  {(isImage || isVideo) && (
+                    <div
+                      className="relative h-32 w-full bg-muted/30 overflow-hidden flex items-center justify-center cursor-pointer"
+                      onClick={() =>
+                        mediaUrls.length > 0 &&
+                        setPreviewMedia({ urls: mediaUrls, index: 0 })
+                      }
+                    >
+                      {isVideo ? (
+                        <div className="relative w-full h-full">
+                          <video
+                            src={primaryUrl!}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           />
-                        )}
-                        {mediaUrls.length > 1 && (
-                          <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/60 backdrop-blur-md text-white text-[9px] font-bold rounded z-10">
-                            +{mediaUrls.length - 1}
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Play className="w-6 h-6 fill-white text-white" />
                           </div>
-                        )}
-                      </>
-                    ) : null}
-                  </div>
+                        </div>
+                      ) : (
+                        <img
+                          src={primaryUrl!}
+                          alt="Cover"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                      )}
+                      {mediaUrls.length > 1 && (
+                        <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/60 backdrop-blur-md text-white text-[9px] font-bold rounded z-10">
+                          +{mediaUrls.length - 1}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <CardContent className="p-4 space-y-3">
                     {titleField && (
                       <p className="font-bold text-sm leading-tight">

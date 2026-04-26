@@ -206,25 +206,30 @@ export function AppSidebar({
   useEffect(() => {
     if (!user || !workspace?.id) return;
     const supabase = createClient();
-    
+
     const loadEmailCount = async () => {
       const { count } = await supabase
-        .from('emails')
-        .select('*', { count: 'exact', head: true })
-        .eq('workspace_id', workspace.id)
-        .eq('receiver_id', user.id)
-        .eq('folder', 'inbox')
-        .eq('is_read', false);
+        .from("emails")
+        .select("*", { count: "exact", head: true })
+        .eq("workspace_id", workspace.id)
+        .eq("receiver_id", user.id)
+        .eq("folder", "inbox")
+        .eq("is_read", false);
       if (count !== null) setEmailUnreadCount(count);
     };
     loadEmailCount();
 
     const channel = supabase
-      .channel('sidebar-email-badge')
+      .channel("sidebar-email-badge")
       .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'emails', filter: `receiver_id=eq.${user.id}` },
-        () => loadEmailCount()
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "emails",
+          filter: `receiver_id=eq.${user.id}`,
+        },
+        () => loadEmailCount(),
       )
       .subscribe();
 
@@ -268,7 +273,7 @@ export function AppSidebar({
       window.removeEventListener("profile_updated", handleProfileUpdate);
     };
   }, [user]);
-  
+
   useEffect(() => {
     const loadWorkspaces = async () => {
       if (!user) return;
@@ -526,10 +531,12 @@ export function AppSidebar({
                     <div className="flex aspect-square size-6 items-center justify-center rounded-md border bg-background text-[10px] font-medium">
                       {ws.name.charAt(0)}
                     </div>
-                    <span className={cn(
-                      "flex-1 truncate",
-                      ws.id === workspace?.id && "font-semibold text-primary"
-                    )}>
+                    <span
+                      className={cn(
+                        "flex-1 truncate",
+                        ws.id === workspace?.id && "font-semibold text-primary",
+                      )}
+                    >
                       {ws.name}
                     </span>
                     {ws.id === workspace?.id && (
@@ -539,7 +546,10 @@ export function AppSidebar({
                 ))}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link href="/workspaces" className="flex items-center gap-2 px-2 py-2 cursor-pointer">
+                  <Link
+                    href="/workspaces"
+                    className="flex items-center gap-2 px-2 py-2 cursor-pointer"
+                  >
                     <Plus className="size-4" />
                     <span className="text-sm">Create or Join Workspace</span>
                   </Link>
@@ -559,14 +569,23 @@ export function AppSidebar({
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Home">
-                  <Link href="/workspaces">
+                  <Link
+                    href={
+                      workspace?.id
+                        ? `/workspace/${workspace.id}`
+                        : "/workspaces"
+                    }
+                  >
                     <LayoutDashboard className="w-4 h-4" />
                     <span>Home</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton onClick={onOpenSearch} tooltip="Search (Ctrl+K)">
+                <SidebarMenuButton
+                  onClick={onOpenSearch}
+                  tooltip="Search (Ctrl+K)"
+                >
                   <Search className="w-4 h-4" />
                   <span>Search</span>
                   <kbd className="ml-auto pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 group-data-[collapsible=icon]:hidden">
@@ -663,10 +682,7 @@ export function AppSidebar({
                 >
                   <Avatar className="h-8 w-8 rounded-lg">
                     {profile?.avatar_url && (
-                      <AvatarImage
-                        src={profile.avatar_url}
-                        alt="Avatar"
-                      />
+                      <AvatarImage src={profile.avatar_url} alt="Avatar" />
                     )}
                     <AvatarFallback className="rounded-lg bg-sidebar-accent">
                       <UserIcon className="w-4 h-4 text-sidebar-foreground/70" />
@@ -714,7 +730,10 @@ export function AppSidebar({
 
                 <DropdownMenuSeparator />
 
-                <DropdownMenuItem onClick={onOpenProfile} className="cursor-pointer">
+                <DropdownMenuItem
+                  onClick={onOpenProfile}
+                  className="cursor-pointer"
+                >
                   <UserIcon className="w-4 h-4 mr-2" />
                   Profile
                 </DropdownMenuItem>
@@ -804,7 +823,11 @@ export function AppSidebar({
                   Documentation
                 </DropdownMenuItem>
                 <DropdownMenuItem className="cursor-pointer" asChild>
-                  <a href="https://github.com/ridhoauliama97/prodeo-productivity-hub" target="_blank" rel="noopener noreferrer">
+                  <a
+                    href="https://github.com/ridhoauliama97/prodeo-productivity-hub"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     <Github className="w-4 h-4 mr-2" />
                     GitHub repository
                   </a>
@@ -823,6 +846,20 @@ export function AppSidebar({
             </DropdownMenu>
           </SidebarMenuItem>
         </SidebarMenu>
+        <div className="mt-2 px-4 flex items-center justify-between border-t border-sidebar-border/30 pt-3 pb-1">
+          <div className="flex items-center gap-1.5 group cursor-default">
+            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[10px] font-bold tracking-widest text-sidebar-foreground/40 group-hover:text-sidebar-foreground/70 transition-colors uppercase">
+              Prodeo v1.2.9
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-3 w-px bg-sidebar-border/50" />
+            <span className="text-[9px] font-bold text-sidebar-foreground/30 px-1.5 py-0.5 rounded bg-sidebar-accent/50 border border-sidebar-border/50">
+              STABLE
+            </span>
+          </div>
+        </div>
       </SidebarFooter>
 
       <SidebarRail />

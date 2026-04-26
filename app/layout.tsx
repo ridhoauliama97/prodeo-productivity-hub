@@ -41,16 +41,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              try {
-                var c = localStorage.getItem('appearance_color');
-                if (c && c !== 'default') document.documentElement.setAttribute('data-color', c);
-              } catch(e) {}
-            `,
-          }}
-        />
+
       </head>
       <body className="font-sans antialiased">
         <ThemeProvider
