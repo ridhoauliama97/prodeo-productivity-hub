@@ -218,7 +218,9 @@ export function Sidebar({
           style={{ paddingLeft: `${level * 12 + 8}px` }}
           className={cn(
             "group flex items-center py-1.5 pr-2 rounded-md cursor-pointer transition-colors text-sm font-medium",
-            isSelected ? "bg-accent text-accent-foreground font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-accent/50",
+            isSelected
+              ? "bg-accent text-accent-foreground font-semibold"
+              : "text-muted-foreground hover:text-foreground hover:bg-accent/50",
           )}
         >
           <div
@@ -337,7 +339,9 @@ export function Sidebar({
         >
           <Search className="w-4 h-4" />
           Search
-          <span className="ml-auto text-[10px] text-sidebar-foreground/30 font-mono">⌘K</span>
+          <span className="ml-auto text-[10px] text-sidebar-foreground/30 font-mono">
+            ⌘K
+          </span>
         </button>
         <button
           className="w-full flex items-center justify-between px-2 py-1.5 text-sm text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-md transition-colors"
@@ -370,7 +374,7 @@ export function Sidebar({
             </span>
             <button
               onClick={() => onCreatePage("Untitled", false)}
-              className="p-0.5 rounded opacity-0 group-hover/section:opacity-60 hover:!opacity-100 hover:bg-sidebar-accent cursor-pointer transition-all"
+              className="p-0.5 rounded opacity-0 group-hover/section:opacity-60 hover:opacity-100! hover:bg-sidebar-accent cursor-pointer transition-all"
             >
               <Plus className="w-3.5 h-3.5" />
             </button>
