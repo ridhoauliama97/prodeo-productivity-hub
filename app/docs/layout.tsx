@@ -35,7 +35,7 @@ export default function DocsLayout({
   const [lang, setLang] = useState<"en" | "id">("en");
 
   useEffect(() => {
-    const savedLang = localStorage.getItem("docs-lang") as "en" | "id";
+    const savedLang = localStorage.getItem("landing-lang") as "en" | "id";
     if (savedLang) setLang(savedLang);
 
     const down = (e: KeyboardEvent) => {
@@ -51,7 +51,7 @@ export default function DocsLayout({
 
   const toggleLang = (newLang: "en" | "id") => {
     setLang(newLang);
-    localStorage.setItem("docs-lang", newLang);
+    localStorage.setItem("landing-lang", newLang);
     window.dispatchEvent(new Event("languageChange"));
   };
 

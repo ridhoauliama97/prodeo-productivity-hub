@@ -12,12 +12,14 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, Command } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -27,6 +29,19 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
+
+  const [lang, setLang] = useState<"en" | "id">("en");
+
+  useEffect(() => {
+    setMounted(true);
+    const savedLang = localStorage.getItem("landing-lang") as "en" | "id";
+    if (savedLang) setLang(savedLang);
+  }, []);
+
+  const toggleLang = (newLang: "en" | "id") => {
+    setLang(newLang);
+    localStorage.setItem("landing-lang", newLang);
+  };
 
   const { signIn } = useAuth();
   const router = useRouter();
@@ -51,8 +66,66 @@ export default function LoginPage() {
     }
   };
 
+  const content = {
+    en: {
+      welcome: "Welcome Back 👋",
+      desc: "Enter your credentials to access Prodeo",
+      email: "Email",
+      emailPlaceholder: "name@example.com",
+      password: "Password",
+      forgotPassword: "Forgot password?",
+      rememberMe: "Remember me",
+      signIn: "Sign In",
+      signingIn: "Signing in...",
+      noAccount: "Don't have an account?",
+      signUp: "Sign Up",
+      error: "Failed to sign in",
+    },
+    id: {
+      welcome: "Selamat Datang Kembali 👋",
+      desc: "Masukkan kredensial Anda untuk mengakses Prodeo",
+      email: "Email",
+      emailPlaceholder: "nama@contoh.com",
+      password: "Kata Sandi",
+      forgotPassword: "Lupa kata sandi?",
+      rememberMe: "Ingat saya",
+      signIn: "Masuk",
+      signingIn: "Masuk...",
+      noAccount: "Belum punya akun?",
+      signUp: "Daftar",
+      error: "Gagal masuk",
+    }
+  }[lang];
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 relative">
+      {/* Top Controls */}
+      <div className="absolute top-4 right-4 flex items-center gap-2">
+        <div className="h-9 flex items-center bg-muted/50 rounded-full border border-border/50 p-1">
+          <button
+            onClick={() => toggleLang("en")}
+            className={cn(
+              "px-3 h-full text-[10px] font-black rounded-full transition-all duration-300",
+              lang === "en"
+                ? "bg-background shadow-sm text-primary"
+                : "text-muted-foreground/60 hover:text-foreground",
+            )}
+          >
+            EN
+          </button>
+          <button
+            onClick={() => toggleLang("id")}
+            className={cn(
+              "px-3 h-full text-[10px] font-black rounded-full transition-all duration-300",
+              lang === "id"
+                ? "bg-background shadow-sm text-primary"
+                : "text-muted-foreground/60 hover:text-foreground",
+            )}
+          >
+            ID
+          </button>
+        </div>
+      </div>
       {/* App Logo */}
       <div className="mb-2 flex flex-col items-center gap-4 group cursor-default">
         <div className="relative w-50 h-30 group-hover:scale-110 transition-transform duration-500">
@@ -77,10 +150,10 @@ export default function LoginPage() {
       <Card className="w-full max-w-md shadow-2xl shadow-primary/5 border-primary/5">
         <CardHeader className="space-y-2 pb-8">
           <CardTitle className="text-2xl font-bold tracking-tight">
-            Welcome Back 👋
+            {content.welcome}
           </CardTitle>
           <CardDescription>
-            Enter your credentials to access Prodeo
+            {content.desc}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -91,13 +164,11 @@ export default function LoginPage() {
               </div>
             )}
             <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium">
-                Email
-              </label>
+              <Label htmlFor="email">{content.email}</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="you@example.com"
+                placeholder={content.emailPlaceholder}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -105,12 +176,12 @@ export default function LoginPage() {
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">{content.password}</Label>
                 {/* <button
                   type="button"
                   className="text-xs text-primary hover:underline font-medium"
                 >
-                  Forgot password?
+                  {content.forgotPassword}
                 </button> */}
               </div>
               <div className="relative group">
@@ -147,20 +218,22 @@ export default function LoginPage() {
                 htmlFor="remember"
                 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
               >
-                Remember me
+                {content.rememberMe}
               </Label>
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing in..." : "Sign In"}
+              {loading ? content.signingIn : content.signIn}
             </Button>
           </form>
-          <p className="text-sm text-center mt-4">
-            Don&apos;t have an account?{" "}
-            <Link href="/signup" className="text-primary hover:underline">
-              Sign Up
+        </CardContent>
+        <CardFooter className="flex justify-center border-t py-4 bg-muted/20">
+          <p className="text-sm text-muted-foreground">
+            {content.noAccount}{" "}
+            <Link href="/signup" className="text-primary hover:underline font-bold">
+              {content.signUp}
             </Link>
           </p>
-        </CardContent>
+        </CardFooter>
       </Card>
     </div>
   );

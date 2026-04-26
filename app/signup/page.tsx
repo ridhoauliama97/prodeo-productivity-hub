@@ -12,12 +12,14 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Eye, EyeOff, Command } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
@@ -29,6 +31,19 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
+
+  const [lang, setLang] = useState<"en" | "id">("en");
+
+  useEffect(() => {
+    setMounted(true);
+    const savedLang = localStorage.getItem("landing-lang") as "en" | "id";
+    if (savedLang) setLang(savedLang);
+  }, []);
+
+  const toggleLang = (newLang: "en" | "id") => {
+    setLang(newLang);
+    localStorage.setItem("landing-lang", newLang);
+  };
 
   const { signUp } = useAuth();
   const router = useRouter();
@@ -59,8 +74,66 @@ export default function SignupPage() {
     }
   };
 
+  const content = {
+    en: {
+      welcome: "Create Account",
+      desc: "Sign up to start using Prodeo",
+      fullName: "Full Name",
+      fullNamePlaceholder: "John Doe",
+      email: "Email",
+      emailPlaceholder: "name@example.com",
+      password: "Password",
+      confirmPassword: "Confirm Password",
+      signUp: "Sign Up",
+      creating: "Creating account...",
+      alreadyAccount: "Already have an account?",
+      signIn: "Sign In",
+    },
+    id: {
+      welcome: "Buat Akun",
+      desc: "Daftar untuk mulai menggunakan Prodeo",
+      fullName: "Nama Lengkap",
+      fullNamePlaceholder: "Budi Santoso",
+      email: "Email",
+      emailPlaceholder: "nama@contoh.com",
+      password: "Kata Sandi",
+      confirmPassword: "Konfirmasi Kata Sandi",
+      signUp: "Daftar",
+      creating: "Membuat akun...",
+      alreadyAccount: "Sudah punya akun?",
+      signIn: "Masuk",
+    }
+  }[lang];
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 relative">
+      {/* Top Controls */}
+      <div className="absolute top-4 right-4 flex items-center gap-2">
+        <div className="h-9 flex items-center bg-muted/50 rounded-full border border-border/50 p-1">
+          <button
+            onClick={() => toggleLang("en")}
+            className={cn(
+              "px-3 h-full text-[10px] font-black rounded-full transition-all duration-300",
+              lang === "en"
+                ? "bg-background shadow-sm text-primary"
+                : "text-muted-foreground/60 hover:text-foreground",
+            )}
+          >
+            EN
+          </button>
+          <button
+            onClick={() => toggleLang("id")}
+            className={cn(
+              "px-3 h-full text-[10px] font-black rounded-full transition-all duration-300",
+              lang === "id"
+                ? "bg-background shadow-sm text-primary"
+                : "text-muted-foreground/60 hover:text-foreground",
+            )}
+          >
+            ID
+          </button>
+        </div>
+      </div>
       {/* App Logo */}
       <div className="mb-2 flex flex-col items-center gap-4 group cursor-default">
         <div className="relative w-50 h-30 group-hover:scale-110 transition-transform duration-500">
@@ -85,9 +158,9 @@ export default function SignupPage() {
       <Card className="w-full max-w-md shadow-2xl shadow-primary/5 border-primary/5">
         <CardHeader className="space-y-2 pb-8">
           <CardTitle className="text-2xl font-bold tracking-tight">
-            Create Account
+            {content.welcome}
           </CardTitle>
-          <CardDescription>Sign up to start using Prodeo</CardDescription>
+          <CardDescription>{content.desc}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -97,29 +170,28 @@ export default function SignupPage() {
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="fullName">Full Name</Label>
+              <Label htmlFor="fullName">{content.fullName}</Label>
               <Input
                 id="fullName"
-                type="text"
-                placeholder="John Doe"
+                placeholder={content.fullNamePlaceholder}
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{content.email}</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="you@example.com"
+                placeholder={content.emailPlaceholder}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{content.password}</Label>
               <div className="relative group">
                 <Input
                   id="password"
@@ -144,7 +216,7 @@ export default function SignupPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Label htmlFor="confirmPassword">{content.confirmPassword}</Label>
               <div className="relative group">
                 <Input
                   id="confirmPassword"
@@ -169,16 +241,18 @@ export default function SignupPage() {
               </div>
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Creating account..." : "Sign Up"}
+              {loading ? content.creating : content.signUp}
             </Button>
           </form>
-          <p className="text-sm text-center mt-4">
-            Already have an account?{" "}
-            <Link href="/login" className="text-primary hover:underline">
-              Sign In
+        </CardContent>
+        <CardFooter className="flex justify-center border-t py-4 bg-muted/20">
+          <p className="text-sm text-muted-foreground">
+            {content.alreadyAccount}{" "}
+            <Link href="/login" className="text-primary hover:underline font-bold">
+              {content.signIn}
             </Link>
           </p>
-        </CardContent>
+        </CardFooter>
       </Card>
     </div>
   );

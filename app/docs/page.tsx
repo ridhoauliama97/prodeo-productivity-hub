@@ -24,11 +24,11 @@ export default function DocsPage() {
   const [lang, setLang] = useState<"en" | "id">("en");
 
   useEffect(() => {
-    const savedLang = localStorage.getItem("docs-lang") as "en" | "id";
+    const savedLang = localStorage.getItem("landing-lang") as "en" | "id";
     if (savedLang) setLang(savedLang);
 
     const handleLangChange = () => {
-      const currentLang = localStorage.getItem("docs-lang") as "en" | "id";
+      const currentLang = localStorage.getItem("landing-lang") as "en" | "id";
       if (currentLang) setLang(currentLang);
     };
 
