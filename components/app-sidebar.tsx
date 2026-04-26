@@ -818,9 +818,11 @@ export function AppSidebar({
 
                 <DropdownMenuSeparator />
 
-                <DropdownMenuItem className="cursor-pointer">
-                  <BookOpen className="w-4 h-4 mr-2" />
-                  Documentation
+                <DropdownMenuItem className="cursor-pointer" asChild>
+                  <Link href="/docs" target="_blank">
+                    <BookOpen className="w-4 h-4 mr-2" />
+                    Documentation
+                  </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem className="cursor-pointer" asChild>
                   <a
@@ -846,18 +848,27 @@ export function AppSidebar({
             </DropdownMenu>
           </SidebarMenuItem>
         </SidebarMenu>
-        <div className="mt-2 px-4 flex items-center justify-between border-t border-sidebar-border/30 pt-3 pb-1">
-          <div className="flex items-center gap-1.5 group cursor-default">
-            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[10px] font-bold tracking-widest text-sidebar-foreground/40 group-hover:text-sidebar-foreground/70 transition-colors uppercase">
-              Prodeo v1.2.9
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="h-3 w-px bg-sidebar-border/50" />
-            <span className="text-[9px] font-bold text-sidebar-foreground/30 px-1.5 py-0.5 rounded bg-sidebar-accent/50 border border-sidebar-border/50">
-              STABLE
-            </span>
+        <div className="mt-2 px-4 border-t border-sidebar-border/30 pt-6 pb-2">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <p className="text-[10px] font-black tracking-tight text-sidebar-foreground/80">
+                PRODEO HUB
+              </p>
+              <p className="text-[8px] font-medium text-sidebar-foreground/30 uppercase tracking-[0.2em]">
+                © {new Date().getFullYear()}
+              </p>
+            </div>
+            <div className="flex flex-col items-end gap-1.5">
+              <span className="px-1.5 py-0.5 rounded-md bg-sidebar-accent/50 text-sidebar-foreground/40 text-[8px] font-black border border-sidebar-border/50 uppercase tracking-tighter">
+                STABLE
+              </span>
+              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                <div className="h-1 w-1 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[9px] font-bold text-emerald-500/80">
+                  v 1.2.11
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </SidebarFooter>

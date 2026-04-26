@@ -2,19 +2,20 @@
 
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { 
-  FileText, 
-  Database, 
-  Users, 
-  Zap, 
-  MousePointer2, 
-  Layout, 
+import {
+  FileText,
+  Database,
+  Users,
+  Zap,
+  MousePointer2,
+  Layout,
   Search,
   CheckCircle2,
   ArrowRight,
   Sparkles,
   ShieldCheck,
-  MessageSquare
+  MessageSquare,
+  ChevronRight,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -38,155 +39,256 @@ export default function DocsPage() {
   const content = {
     en: {
       badge: "Prodeo Documentation",
-      title: <>Next-Generation <br /><span className="text-primary italic">Productivity Hub</span></>,
-      intro: "Welcome to the official Prodeo Hub documentation. Learn how to maximize your workspace for smarter and faster collaboration.",
+      title: (
+        <>
+          Next-Generation <br />
+          <span className="text-primary italic">Productivity Hub</span>
+        </>
+      ),
+      intro:
+        "Welcome to the official Prodeo Hub documentation. Learn how to maximize your workspace for smarter and faster collaboration.",
       quickStartTitle: "Quick Start Guide",
       quickSteps: [
-        { step: "01", title: "Create a Workspace", desc: "Workspaces are the top-level containers for your projects. Invite team members to collaborate." },
-        { step: "02", title: "Add your first Page", desc: "Click the '+' button in the sidebar to create a new page. You can start with a blank document or a database." },
-        { step: "03", title: "Organize with Folders", desc: "Drag and drop pages to create nested structures and keep your work organized." }
+        {
+          step: "01",
+          title: "Create a Workspace",
+          desc: "Workspaces are the top-level containers for your projects. Invite team members to collaborate.",
+        },
+        {
+          step: "02",
+          title: "Add your first Page",
+          desc: "Click the '+' button in the sidebar to create a new page. You can start with a blank document or a database.",
+        },
+        {
+          step: "03",
+          title: "Organize with Folders",
+          desc: "Drag and drop pages to create nested structures and keep your work organized.",
+        },
       ],
       editorTitle: "Rich Text Editor",
-      editorDesc: "A clean yet powerful writing experience. Use slash commands to insert content blocks instantly.",
+      editorDesc:
+        "A clean yet powerful writing experience. Use slash commands to insert content blocks instantly.",
       editorFeatures: [
-        { label: "Markdown Support", desc: "Write fast with standard markdown syntax." },
-        { label: "Slash Commands", desc: "Type '/' to insert images, tables, or databases." },
-        { label: "Live Collaboration", desc: "See team member cursors in real-time while editing." }
+        {
+          label: "Markdown Support",
+          desc: "Write fast with standard markdown syntax.",
+        },
+        {
+          label: "Slash Commands",
+          desc: "Type '/' to insert images, tables, or databases.",
+        },
+        {
+          label: "Live Collaboration",
+          desc: "See team member cursors in real-time while editing.",
+        },
       ],
       dbTitle: "Structured Databases",
-      dbDesc: "Transform your pages into powerful databases. Organize projects, track tasks, and manage data with flexible views.",
+      dbDesc:
+        "Transform your pages into powerful databases. Organize projects, track tasks, and manage data with flexible views.",
       dbViews: [
         { name: "Table View", color: "text-blue-500" },
         { name: "Board View", color: "text-amber-500" },
         { name: "Gallery View", color: "text-rose-500" },
-        { name: "Calendar View", color: "text-green-500" }
+        { name: "Calendar View", color: "text-green-500" },
       ],
       chatTitle: "Real-time Chat",
-      chatDesc: "Communicate with your team without switching apps. Prodeo Hub includes a powerful real-time chat system built into every workspace.",
+      chatDesc:
+        "Communicate with your team without switching apps. Prodeo Hub includes a powerful real-time chat system built into every workspace.",
       chatItems: [
-        { name: "Alex", msg: "Hey team, how's the progress?", time: "10:00 AM" },
-        { name: "Sarah", msg: "Almost done with the design!", time: "10:02 AM" },
-        { name: "You", msg: "Great! Let's review it later.", time: "10:05 AM" }
+        {
+          name: "Alex",
+          msg: "Hey team, how's the progress?",
+          time: "10:00 AM",
+        },
+        {
+          name: "Sarah",
+          msg: "Almost done with the design!",
+          time: "10:02 AM",
+        },
+        { name: "You", msg: "Great! Let's review it later.", time: "10:05 AM" },
       ],
       chatFeatures: [
         "Instant messaging with low latency",
         "Read receipts and typing indicators",
         "Emoji reactions for quick feedback",
-        "Channel-based organization"
+        "Channel-based organization",
       ],
       shortcutTitle: "Keyboard Shortcuts",
-      shortcutDesc: "Boost your productivity with these essential keyboard shortcuts. Master Prodeo Hub without leaving your keyboard.",
+      shortcutDesc:
+        "Boost your productivity with these essential keyboard shortcuts. Master Prodeo Hub without leaving your keyboard.",
       shortcutCats: [
-        { 
-          title: "General", 
+        {
+          title: "General",
           items: [
             { key: "Ctrl + K", desc: "Open global search" },
             { key: "Ctrl + /", desc: "Toggle sidebar" },
-            { key: "Ctrl + S", desc: "Save changes (auto-saves)" }
-          ]
+            { key: "Ctrl + S", desc: "Save changes (auto-saves)" },
+          ],
         },
-        { 
-          title: "Editor", 
+        {
+          title: "Editor",
           items: [
             { key: "/", desc: "Open slash command menu" },
             { key: "Ctrl + B", desc: "Bold text" },
-            { key: "Ctrl + I", desc: "Italic text" }
-          ]
-        }
+            { key: "Ctrl + I", desc: "Italic text" },
+          ],
+        },
       ],
       securityTitle: "Workspace Security",
-      securityDesc: "Prodeo Hub uses enterprise-grade security to ensure your data is always safe and accessible only to authorized members.",
+      securityDesc:
+        "Prodeo Hub uses enterprise-grade security to ensure your data is always safe and accessible only to authorized members.",
       securityItems: [
-        { title: "Row Level Security (RLS)", desc: "Every piece of data is protected at the database level, ensuring cross-workspace isolation." },
-        { title: "Member Roles", desc: "Define who can view, edit, or manage your workspace content with granular permissions." }
+        {
+          title: "Row Level Security (RLS)",
+          desc: "Every piece of data is protected at the database level, ensuring cross-workspace isolation.",
+        },
+        {
+          title: "Member Roles",
+          desc: "Define who can view, edit, or manage your workspace content with granular permissions.",
+        },
       ],
       ctaTitle: "Still need help?",
-      ctaDesc: "Our support team is always here to help you get the most out of Prodeo Hub.",
-      ctaBtn1: "Contact Support",
-      ctaBtn2: "Community Forum"
+      ctaDesc:
+        "Our support team is always here to help you get the most out of Prodeo Hub.",
+      ctaBtn1: "Get In Touch",
+      ctaBtn2: "Community Forum",
     },
     id: {
       badge: "Dokumentasi Prodeo",
-      title: <>Pusat Produktivitas <br /><span className="text-primary italic">Generasi Berikutnya</span></>,
-      intro: "Selamat datang di dokumentasi resmi Prodeo Hub. Pelajari cara memaksimalkan workspace Anda untuk kolaborasi yang lebih cerdas dan cepat.",
+      title: (
+        <>
+          Pusat Produktivitas <br />
+          <span className="text-primary italic">Generasi Berikutnya</span>
+        </>
+      ),
+      intro:
+        "Selamat datang di dokumentasi resmi Prodeo Hub. Pelajari cara memaksimalkan workspace Anda untuk kolaborasi yang lebih cerdas dan cepat.",
       quickStartTitle: "Panduan Cepat",
       quickSteps: [
-        { step: "01", title: "Buat Workspace", desc: "Workspace adalah kontainer tingkat atas untuk proyek Anda. Undang anggota tim untuk berkolaborasi." },
-        { step: "02", title: "Tambahkan Halaman Pertama", desc: "Klik tombol '+' di sidebar untuk membuat halaman baru. Mulai dengan dokumen kosong atau database." },
-        { step: "03", title: "Atur dengan Folder", desc: "Seret dan lepas halaman untuk membuat struktur bertingkat dan menjaga pekerjaan tetap teratur." }
+        {
+          step: "01",
+          title: "Buat Workspace",
+          desc: "Workspace adalah kontainer tingkat atas untuk proyek Anda. Undang anggota tim untuk berkolaborasi.",
+        },
+        {
+          step: "02",
+          title: "Tambahkan Halaman Pertama",
+          desc: "Klik tombol '+' di sidebar untuk membuat halaman baru. Mulai dengan dokumen kosong atau database.",
+        },
+        {
+          step: "03",
+          title: "Atur dengan Folder",
+          desc: "Seret dan lepas halaman untuk membuat struktur bertingkat dan menjaga pekerjaan tetap teratur.",
+        },
       ],
       editorTitle: "Editor Teks Kaya",
-      editorDesc: "Pengalaman menulis yang bersih namun bertenaga. Gunakan perintah slash untuk menyisipkan blok konten secara instan.",
+      editorDesc:
+        "Pengalaman menulis yang bersih namun bertenaga. Gunakan perintah slash untuk menyisipkan blok konten secara instan.",
       editorFeatures: [
-        { label: "Markdown Support", desc: "Tulis cepat dengan sintaks markdown standar." },
-        { label: "Slash Commands", desc: "Ketik '/' untuk menyisipkan gambar, tabel, atau database." },
-        { label: "Live Collaboration", desc: "Lihat kursor anggota tim secara real-time saat mengedit." }
+        {
+          label: "Markdown Support",
+          desc: "Tulis cepat dengan sintaks markdown standar.",
+        },
+        {
+          label: "Slash Commands",
+          desc: "Ketik '/' untuk menyisipkan gambar, tabel, atau database.",
+        },
+        {
+          label: "Live Collaboration",
+          desc: "Lihat kursor anggota tim secara real-time saat mengedit.",
+        },
       ],
       dbTitle: "Database Terstruktur",
-      dbDesc: "Ubah halaman Anda menjadi database yang kuat. Atur proyek, lacak tugas, dan kelola data dengan tampilan yang fleksibel.",
+      dbDesc:
+        "Ubah halaman Anda menjadi database yang kuat. Atur proyek, lacak tugas, dan kelola data dengan tampilan yang fleksibel.",
       dbViews: [
         { name: "Tampilan Tabel", color: "text-blue-500" },
         { name: "Tampilan Board", color: "text-amber-500" },
         { name: "Tampilan Galeri", color: "text-rose-500" },
-        { name: "Tampilan Kalender", color: "text-green-500" }
+        { name: "Tampilan Kalender", color: "text-green-500" },
       ],
       chatTitle: "Chat Real-time",
-      chatDesc: "Berkomunikasi dengan tim Anda tanpa berpindah aplikasi. Prodeo Hub menyertakan sistem chat real-time yang kuat di setiap workspace.",
+      chatDesc:
+        "Berkomunikasi dengan tim Anda tanpa berpindah aplikasi. Prodeo Hub menyertakan sistem chat real-time yang kuat di setiap workspace.",
       chatItems: [
-        { name: "Alex", msg: "Halo tim, bagaimana progressnya?", time: "10:00 AM" },
-        { name: "Sarah", msg: "Hampir selesai dengan desainnya!", time: "10:02 AM" },
-        { name: "Anda", msg: "Bagus! Mari kita tinjau nanti.", time: "10:05 AM" }
+        {
+          name: "Alex",
+          msg: "Halo tim, bagaimana progressnya?",
+          time: "10:00 AM",
+        },
+        {
+          name: "Sarah",
+          msg: "Hampir selesai dengan desainnya!",
+          time: "10:02 AM",
+        },
+        {
+          name: "Anda",
+          msg: "Bagus! Mari kita tinjau nanti.",
+          time: "10:05 AM",
+        },
       ],
       chatFeatures: [
         "Pesan instan dengan latensi rendah",
         "Indikator pesan dibaca dan sedang mengetik",
         "Reaksi emoji untuk umpan balik cepat",
-        "Pengaturan berbasis channel"
+        "Pengaturan berbasis channel",
       ],
       shortcutTitle: "Pintasan Keyboard",
-      shortcutDesc: "Tingkatkan produktivitas Anda dengan pintasan keyboard esensial ini. Kuasai Prodeo Hub tanpa meninggalkan keyboard Anda.",
+      shortcutDesc:
+        "Tingkatkan produktivitas Anda dengan pintasan keyboard esensial ini. Kuasai Prodeo Hub tanpa meninggalkan keyboard Anda.",
       shortcutCats: [
-        { 
-          title: "Umum", 
+        {
+          title: "Umum",
           items: [
             { key: "Ctrl + K", desc: "Buka pencarian global" },
             { key: "Ctrl + /", desc: "Tampilkan/sembunyikan sidebar" },
-            { key: "Ctrl + S", desc: "Simpan perubahan (auto-save)" }
-          ]
+            { key: "Ctrl + S", desc: "Simpan perubahan (auto-save)" },
+          ],
         },
-        { 
-          title: "Editor", 
+        {
+          title: "Editor",
           items: [
             { key: "/", desc: "Buka menu perintah slash" },
             { key: "Ctrl + B", desc: "Tebalkan teks" },
-            { key: "Ctrl + I", desc: "Miringkan teks" }
-          ]
-        }
+            { key: "Ctrl + I", desc: "Miringkan teks" },
+          ],
+        },
       ],
       securityTitle: "Keamanan Workspace",
-      securityDesc: "Prodeo Hub menggunakan keamanan kelas enterprise untuk memastikan data Anda selalu aman dan hanya dapat diakses oleh anggota yang berwenang.",
+      securityDesc:
+        "Prodeo Hub menggunakan keamanan kelas enterprise untuk memastikan data Anda selalu aman dan hanya dapat diakses oleh anggota yang berwenang.",
       securityItems: [
-        { title: "Row Level Security (RLS)", desc: "Setiap bagian data dilindungi pada tingkat database, memastikan isolasi antar workspace." },
-        { title: "Peran Anggota", desc: "Tentukan siapa yang dapat melihat, mengedit, atau mengelola konten workspace Anda dengan izin yang terperinci." }
+        {
+          title: "Row Level Security (RLS)",
+          desc: "Setiap bagian data dilindungi pada tingkat database, memastikan isolasi antar workspace.",
+        },
+        {
+          title: "Peran Anggota",
+          desc: "Tentukan siapa yang dapat melihat, mengedit, atau mengelola konten workspace Anda dengan izin yang terperinci.",
+        },
       ],
       ctaTitle: "Masih butuh bantuan?",
-      ctaDesc: "Tim dukungan kami selalu siap membantu Anda memaksimalkan penggunaan Prodeo Hub.",
-      ctaBtn1: "Hubungi Dukungan",
-      ctaBtn2: "Forum Komunitas"
-    }
+      ctaDesc:
+        "Tim dukungan kami selalu siap membantu Anda memaksimalkan penggunaan Prodeo Hub.",
+      ctaBtn1: "Hubungi",
+      ctaBtn2: "Forum Komunitas",
+    },
   }[lang];
 
   return (
     <div className="space-y-24 pb-20">
       {/* Introduction */}
       <section id="introduction" className="scroll-mt-24">
-        <motion.div 
+        <motion.div
           key={`intro-${lang}`}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="space-y-6"
         >
-          <Badge variant="outline" className="px-4 py-1 border-primary/20 bg-primary/5 text-primary rounded-full font-medium">
+          <Badge
+            variant="outline"
+            className="px-4 py-1 border-primary/20 bg-primary/5 text-primary rounded-full font-medium"
+          >
             {content.badge}
           </Badge>
           <h1 className="text-5xl md:text-6xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/60">
@@ -199,7 +301,10 @@ export default function DocsPage() {
       </section>
 
       {/* Quick Start */}
-      <section id="quick-start" className="scroll-mt-24 pt-8 border-t border-muted/50">
+      <section
+        id="quick-start"
+        className="scroll-mt-24 pt-8 border-t border-muted/50"
+      >
         <div className="flex flex-col md:flex-row gap-12">
           <div className="flex-1 space-y-6">
             <h2 className="text-3xl font-bold flex items-center gap-3">
@@ -210,7 +315,7 @@ export default function DocsPage() {
             </h2>
             <div className="space-y-8 mt-10">
               {content.quickSteps.map((item, i) => (
-                <motion.div 
+                <motion.div
                   key={`${i}-${lang}`}
                   initial={{ opacity: 0, x: -10 }}
                   whileInView={{ opacity: 1, x: 0 }}
@@ -223,7 +328,9 @@ export default function DocsPage() {
                   </span>
                   <div className="space-y-1">
                     <h4 className="font-bold text-lg">{item.title}</h4>
-                    <p className="text-muted-foreground text-sm leading-relaxed">{item.desc}</p>
+                    <p className="text-muted-foreground text-sm leading-relaxed">
+                      {item.desc}
+                    </p>
                   </div>
                 </motion.div>
               ))}
@@ -252,9 +359,12 @@ export default function DocsPage() {
       </section>
 
       {/* Rich Text Editor */}
-      <section id="documents" className="scroll-mt-24 pt-8 border-t border-muted/50">
+      <section
+        id="documents"
+        className="scroll-mt-24 pt-8 border-t border-muted/50"
+      >
         <div className="grid md:grid-cols-2 gap-12 items-center">
-          <motion.div 
+          <motion.div
             key={`editor-text-${lang}`}
             initial={{ opacity: 0, x: -20 }}
             whileInView={{ opacity: 1, x: 0 }}
@@ -276,14 +386,18 @@ export default function DocsPage() {
                     <CheckCircle2 className="h-3 w-3 text-primary" />
                   </div>
                   <div>
-                    <span className="font-bold text-sm block">{item.label}</span>
-                    <span className="text-xs text-muted-foreground">{item.desc}</span>
+                    <span className="font-bold text-sm block">
+                      {item.label}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {item.desc}
+                    </span>
                   </div>
                 </div>
               ))}
             </div>
           </motion.div>
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
@@ -306,8 +420,11 @@ export default function DocsPage() {
       </section>
 
       {/* Databases */}
-      <section id="databases" className="scroll-mt-24 pt-8 border-t border-muted/50">
-        <motion.div 
+      <section
+        id="databases"
+        className="scroll-mt-24 pt-8 border-t border-muted/50"
+      >
+        <motion.div
           key={`db-${lang}`}
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -322,13 +439,20 @@ export default function DocsPage() {
           <p className="text-muted-foreground leading-relaxed mb-10 max-w-2xl">
             {content.dbDesc}
           </p>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {content.dbViews.map((view, i) => (
-              <div key={i} className="p-4 bg-background border rounded-xl flex items-center justify-between group hover:border-primary/50 transition-all cursor-pointer">
+              <div
+                key={i}
+                className="p-4 bg-background border rounded-xl flex items-center justify-between group hover:border-primary/50 transition-all cursor-pointer"
+              >
                 <div className="flex items-center gap-3">
-                  <div className={`h-8 w-8 rounded-lg bg-muted flex items-center justify-center ${view.color}`}>
-                    <Layout className={`h-4 w-4 ${view.name.includes("Board") || view.name.includes("Papan") ? "rotate-90" : ""}`} />
+                  <div
+                    className={`h-8 w-8 rounded-lg bg-muted flex items-center justify-center ${view.color}`}
+                  >
+                    <Layout
+                      className={`h-4 w-4 ${view.name.includes("Board") || view.name.includes("Papan") ? "rotate-90" : ""}`}
+                    />
                   </div>
                   <span className="font-medium text-sm">{view.name}</span>
                 </div>
@@ -340,9 +464,12 @@ export default function DocsPage() {
       </section>
 
       {/* Real-time Chat */}
-      <section id="collaboration" className="scroll-mt-24 pt-8 border-t border-muted/50">
+      <section
+        id="collaboration"
+        className="scroll-mt-24 pt-8 border-t border-muted/50"
+      >
         <div className="grid md:grid-cols-2 gap-12 items-center">
-          <motion.div 
+          <motion.div
             key={`chat-ui-${lang}`}
             initial={{ opacity: 0, scale: 0.9 }}
             whileInView={{ opacity: 1, scale: 1 }}
@@ -350,16 +477,21 @@ export default function DocsPage() {
             className="order-2 md:order-1 bg-muted/40 rounded-2xl p-8 border border-muted/50 flex flex-col gap-4"
           >
             {content.chatItems.map((chat, i) => (
-              <div key={i} className={`p-3 rounded-xl max-w-[80%] ${chat.name === "You" || chat.name === "Anda" ? "bg-primary text-primary-foreground self-end" : "bg-background border self-start"}`}>
+              <div
+                key={i}
+                className={`p-3 rounded-xl max-w-[80%] ${chat.name === "You" || chat.name === "Anda" ? "bg-primary text-primary-foreground self-end" : "bg-background border self-start"}`}
+              >
                 <div className="flex justify-between items-end gap-4 mb-1">
-                  <span className="text-[10px] font-bold uppercase opacity-70">{chat.name}</span>
+                  <span className="text-[10px] font-bold uppercase opacity-70">
+                    {chat.name}
+                  </span>
                   <span className="text-[10px] opacity-50">{chat.time}</span>
                 </div>
                 <p className="text-sm">{chat.msg}</p>
               </div>
             ))}
           </motion.div>
-          <motion.div 
+          <motion.div
             key={`chat-text-${lang}`}
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -388,8 +520,11 @@ export default function DocsPage() {
       </section>
 
       {/* Keyboard Shortcuts */}
-      <section id="shortcuts" className="scroll-mt-24 pt-8 border-t border-muted/50">
-        <motion.div 
+      <section
+        id="shortcuts"
+        className="scroll-mt-24 pt-8 border-t border-muted/50"
+      >
+        <motion.div
           key={`shortcuts-${lang}`}
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -404,15 +539,22 @@ export default function DocsPage() {
           <p className="text-muted-foreground leading-relaxed mb-10 max-w-2xl">
             {content.shortcutDesc}
           </p>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {content.shortcutCats.map((cat, i) => (
               <div key={i} className="space-y-4">
-                <h4 className="font-bold text-sm uppercase tracking-wider text-muted-foreground/70 px-3 border-l-2 border-primary/20">{cat.title}</h4>
+                <h4 className="font-bold text-sm uppercase tracking-wider text-muted-foreground/70 px-3 border-l-2 border-primary/20">
+                  {cat.title}
+                </h4>
                 {cat.items.map((item, j) => (
-                  <div key={j} className="flex items-center justify-between p-3 bg-muted/20 rounded-lg border border-muted/50">
+                  <div
+                    key={j}
+                    className="flex items-center justify-between p-3 bg-muted/20 rounded-lg border border-muted/50"
+                  >
                     <span className="text-sm">{item.desc}</span>
-                    <kbd className="px-2 py-1 bg-background border rounded text-[10px] font-bold shadow-sm">{item.key}</kbd>
+                    <kbd className="px-2 py-1 bg-background border rounded text-[10px] font-bold shadow-sm">
+                      {item.key}
+                    </kbd>
                   </div>
                 ))}
               </div>
@@ -422,8 +564,11 @@ export default function DocsPage() {
       </section>
 
       {/* Workspace Security */}
-      <section id="permissions" className="scroll-mt-24 pt-8 border-t border-muted/50">
-        <motion.div 
+      <section
+        id="permissions"
+        className="scroll-mt-24 pt-8 border-t border-muted/50"
+      >
+        <motion.div
           key={`security-${lang}`}
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -450,24 +595,46 @@ export default function DocsPage() {
       </section>
 
       {/* Call to action */}
-      <motion.section 
+      <motion.section
         key={`cta-${lang}`}
         initial={{ opacity: 0, scale: 0.95 }}
         whileInView={{ opacity: 1, scale: 1 }}
         viewport={{ once: true }}
-        className="mt-20 p-8 md:p-12 bg-primary rounded-3xl text-primary-foreground relative overflow-hidden"
+        className="mt-20 p-8 md:p-16 bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 rounded-[2.5rem] relative overflow-hidden"
       >
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 blur-[80px] rounded-full -translate-y-1/2 translate-x-1/2" />
-        <div className="relative z-10 text-center space-y-6">
-          <h2 className="text-3xl md:text-4xl font-bold">{content.ctaTitle}</h2>
-          <p className="text-primary-foreground/80 text-lg max-w-xl mx-auto">
-            {content.ctaDesc}
-          </p>
+        <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 blur-[100px] rounded-full -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-primary/5 blur-[80px] rounded-full translate-y-1/2 -translate-x-1/2" />
+
+        <div className="relative z-10 text-center space-y-8">
+          <div className="space-y-4">
+            <h2 className="text-3xl md:text-5xl font-black tracking-tighter text-zinc-900 dark:text-zinc-50">
+              {content.ctaTitle}
+            </h2>
+            <p className="text-zinc-500 dark:text-zinc-400 text-lg md:text-xl max-w-2xl mx-auto font-medium">
+              {content.ctaDesc}
+            </p>
+          </div>
+
           <div className="flex flex-wrap justify-center gap-4 pt-4">
-            <button className="px-8 h-12 rounded-full bg-white text-primary font-bold hover:bg-white/90 transition-colors">
-              {content.ctaBtn1}
+            <button
+              onClick={() => {
+                const subject = encodeURIComponent(
+                  "Support Request: Prodeo Hub",
+                );
+                const body = encodeURIComponent(
+                  "Hei, saya butuh bantuan perihal aplikasi Prodeo : Productivity Hub.",
+                );
+                window.location.href = `mailto:ridhoauliama97@gmail.com?subject=${subject}&body=${body}`;
+              }}
+              className="group relative px-8 h-14 rounded-2xl bg-zinc-900 dark:bg-zinc-50 text-zinc-50 dark:text-zinc-900 font-bold hover:scale-105 active:scale-95 transition-all duration-300 shadow-xl shadow-zinc-900/10 dark:shadow-zinc-50/10"
+            >
+              <span className="relative z-10 flex items-center gap-2">
+                {content.ctaBtn1}
+                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </span>
             </button>
-            <button className="px-8 h-12 rounded-full bg-primary-foreground/10 border border-white/20 text-white font-bold hover:bg-white/10 transition-colors">
+
+            <button className="px-8 h-14 rounded-2xl bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-zinc-900 dark:text-zinc-50 font-bold hover:bg-zinc-200 dark:hover:bg-white/10 active:scale-95 transition-all duration-300">
               {content.ctaBtn2}
             </button>
           </div>
