@@ -589,9 +589,11 @@ export function Sidebar({
                 <BookOpen className="w-4 h-4 mr-2" />
                 Documentation
               </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer">
-                <Github className="w-4 h-4 mr-2" />
-                GitHub repository
+              <DropdownMenuItem className="cursor-pointer" asChild>
+                <a href="https://github.com/ridhoauliama97/prodeo-productivity-hub" target="_blank" rel="noopener noreferrer">
+                  <Github className="w-4 h-4 mr-2" />
+                  GitHub repository
+                </a>
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={signOut}

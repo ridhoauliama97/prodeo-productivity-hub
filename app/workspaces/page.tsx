@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
+import { useTheme } from "next-themes";
 import { useAuth } from "@/lib/auth-context";
 import { fetchWorkspacesApi, createWorkspaceApi } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
@@ -18,6 +20,7 @@ export default function WorkspacesPage() {
   const [loading, setLoading] = useState(true);
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const { resolvedTheme } = useTheme();
   const router = useRouter();
 
   const userId = user?.id;
@@ -85,9 +88,21 @@ export default function WorkspacesPage() {
       {/* Header */}
       <header className="border-b bg-card">
         <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Prodeo</h1>
+          <Image
+            src={resolvedTheme === "dark" ? "/logo-bg-dark.png" : "/logo-bg-white.png"}
+            alt="Prodeo"
+            width={280}
+            height={80}
+            className="h-20 w-auto object-contain"
+            style={{ width: "auto" }}
+            priority
+          />
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setIsProfileOpen(true)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsProfileOpen(true)}
+            >
               <User className="w-4 h-4 mr-2" />
               Profile
             </Button>
@@ -165,9 +180,9 @@ export default function WorkspacesPage() {
         </div>
       </main>
 
-      <ProfileModal 
-        isOpen={isProfileOpen} 
-        onClose={() => setIsProfileOpen(false)} 
+      <ProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
       />
     </div>
   );
