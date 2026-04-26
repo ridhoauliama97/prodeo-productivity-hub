@@ -108,8 +108,8 @@ export function InboxModal({ isOpen, onClose }: InboxModalProps) {
         <DialogHeader className="px-6 py-4 border-b">
           <div className="flex items-center justify-between">
             <DialogTitle className="flex items-center gap-2">
-              <Inbox className="w-5 h-5 text-primary" />
-              Inbox
+              <Bell className="w-5 h-5 text-primary" />
+              Notifikasi
               {unreadCount > 0 && (
                 <span className="inline-flex items-center justify-center min-w-[20px] h-[20px] px-1.5 text-[10px] font-bold leading-none text-white bg-red-500 rounded-full">
                   {unreadCount}

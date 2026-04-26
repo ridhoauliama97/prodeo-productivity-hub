@@ -33,40 +33,57 @@ export const DatabaseSummary = ({ fields, rows }: DatabaseSummaryProps) => {
     });
   };
 
-  const totalTasks = rows.length;
-  const completedTasks = rows.filter((r) =>
-    isRowCompleted(r.properties),
-  ).length;
-  const percentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
-  const ratioDisplay =
-    totalTasks > 0 ? (completedTasks / totalTasks).toFixed(1) : "0.0";
+  // Basic Stats (Root Tasks only)
+  const rootRows = rows.filter((r) => !r.parent_row_id);
+  const totalRootTasks = rootRows.length;
+  const completedRootTasks = rootRows.filter((r) => isRowCompleted(r.properties)).length;
+  const overallPercentage = totalRootTasks > 0 ? (completedRootTasks / totalRootTasks) * 100 : 0;
+
+  // Parent vs Subtask Logic (Rows that have children)
+  const parentRows = rows.filter(r => rows.some(child => child.parent_row_id === r.id));
+  const rootParents = parentRows.filter(r => !r.parent_row_id);
+  const subParents = parentRows.filter(r => !!r.parent_row_id);
+  
+  const parentStats = parentRows.map(parent => {
+    const directChildren = rows.filter(child => child.parent_row_id === parent.id);
+    const completedChildren = directChildren.filter(child => isRowCompleted(child.properties));
+    const completionRate = directChildren.length > 0 ? completedChildren.length / directChildren.length : 0;
+    return {
+      id: parent.id,
+      isFullyCompleted: completionRate === 1 && directChildren.length > 0,
+      completionRate,
+      totalChildren: directChildren.length,
+      completedChildren: completedChildren.length
+    };
+  });
+
+  const fullyCompletedParentsCount = parentStats.filter(p => p.isFullyCompleted).length;
+  const avgParentProgress = parentStats.length > 0 
+    ? (parentStats.reduce((acc, curr) => acc + curr.completionRate, 0) / parentStats.length) * 100 
+    : 0;
 
   const generateSummary = () => {
     setIsGenerating(true);
-    // Simulate AI generation
     setTimeout(() => {
-      const taskNames = rows
-        .map((r) => {
-          const titleField = fields.find((f) => f.is_title_field) || fields[0];
-          return r.properties[titleField?.id || ""] || "Unnamed Task";
-        })
-        .slice(0, 5);
+      const titleField = fields.find((f) => f.is_title_field) || fields[0];
+      const topParents = parentRows
+        .slice(0, 3)
+        .map(r => r.properties[titleField?.id || ""] || "Unnamed Parent");
 
-      let text = `Berdasarkan ${totalTasks} tugas yang ada, ${completedTasks} tugas telah selesai (${percentage.toFixed(1)}%). `;
-
-      if (percentage === 100) {
-        text +=
-          "Luar biasa! Semua tugas telah diselesaikan dengan sempurna. Tim menunjukkan produktivitas maksimal.";
-      } else if (percentage > 50) {
-        text +=
-          "Progres sangat baik. Fokus saat ini adalah menyelesaikan sisa tugas yang tertunda untuk mencapai target tepat waktu.";
-      } else {
-        text +=
-          "Masih banyak tugas yang perlu perhatian. Disarankan untuk memprioritaskan tugas-tugas krusial guna meningkatkan efisiensi.";
+      let text = `Analisis Data: Dari total ${totalRootTasks} tugas utama, ${completedRootTasks} telah selesai (${overallPercentage.toFixed(1)}%).\n\n`;
+      
+      if (parentRows.length > 0) {
+        text += `Struktur Hirarki: Terdapat ${parentRows.length} tugas yang bertindak sebagai induk. `;
+        text += `${fullyCompletedParentsCount} di antaranya telah menyelesaikan seluruh sub-tugasnya. `;
+        text += `Rata-rata progres penyelesaian sub-tugas secara kolektif adalah ${avgParentProgress.toFixed(1)}%.\n\n`;
       }
 
-      if (taskNames.length > 0) {
-        text += `\n\nTugas utama meliputi: ${taskNames.join(", ")}.`;
+      if (overallPercentage === 100) {
+        text += "Status: Sempurna. Seluruh alur kerja telah tuntas.";
+      } else if (avgParentProgress > 70) {
+        text += "Status: Progres Kuat. Fokus pada penyelesaian beberapa sub-tugas terakhir untuk menutup milestone.";
+      } else {
+        text += "Status: Perlu Perhatian. Distribusi tugas pada sub-tugas masih belum optimal.";
       }
 
       setSummary(text);
@@ -75,52 +92,88 @@ export const DatabaseSummary = ({ fields, rows }: DatabaseSummaryProps) => {
   };
 
   useEffect(() => {
-    if (totalTasks > 0 && !summary && !isGenerating) {
-      // Auto generate on first load if rows exist
+    if (rows.length > 0 && !summary && !isGenerating) {
       generateSummary();
     }
-  }, [totalTasks]);
+  }, [rows.length]);
 
-  if (totalTasks === 0) return null;
+  if (rows.length === 0) return null;
 
   return (
     <Card className="relative mt-8 bg-zinc-950/50 border-white/5 overflow-hidden group">
       <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
       <div className="p-6 relative">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          {/* Left: Stats */}
-          <div className="flex-1 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-500/10 rounded-lg">
-                <CheckCircle2 className="w-5 h-5 text-green-500" />
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Left: Enhanced Stats */}
+          <div className="flex-1 space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Overall Tasks */}
+              <div className="p-4 rounded-xl bg-white/5 border border-white/5 space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-500/10 rounded-lg">
+                    <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  </div>
+                  <h4 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">
+                    Tasks Completed
+                  </h4>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-baseline justify-between w-full">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-bold text-white">{completedRootTasks}</span>
+                      <span className="text-xs text-zinc-500">/ {totalRootTasks} Total</span>
+                    </div>
+                    <span className="text-sm font-semibold text-white">
+                      {overallPercentage.toFixed(0)}%
+                    </span>
+                  </div>
+                  <Progress value={overallPercentage} className="h-1 bg-zinc-800" />
+                </div>
               </div>
-              <div>
-                <h3 className="text-sm font-semibold text-white">
-                  Completed Task
-                </h3>
-                <p className="text-xs text-zinc-400">
-                  {completedTasks}/{totalTasks} Tasks has Completed
-                </p>
+
+              {/* Parent Tasks */}
+              <div className="p-4 rounded-xl bg-white/5 border border-white/5 space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-500/10 rounded-lg">
+                    <TrendingUp className="w-4 h-4 text-indigo-500" />
+                  </div>
+                  <h4 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">
+                    Parent Tasks Done
+                  </h4>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-bold text-white">{fullyCompletedParentsCount}</span>
+                    <span className="text-xs text-zinc-500">/ {parentRows.length} Parents</span>
+                  </div>
+                  <Progress value={avgParentProgress} className="h-1 bg-zinc-800" />
+                  <p className="text-[10px] text-zinc-500 mt-1">
+                    Avg. Subtask Progress: {avgParentProgress.toFixed(0)}%
+                  </p>
+                </div>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs font-medium">
-                <span className="text-zinc-400">Progres Keseluruhan</span>
-                <span className="text-white">
-                  {percentage.toFixed(1)}% ({ratioDisplay} %)
-                </span>
+            {/* Sub-summary counts */}
+            <div className="flex flex-wrap gap-4 px-1">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-blue-500" />
+                <span className="text-xs text-zinc-400">Root Parents: {rootParents.length}</span>
               </div>
-              <Progress value={percentage} className="h-1.5 bg-zinc-800" />
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-purple-500" />
+                <span className="text-xs text-zinc-400">Sub-parents: {subParents.length}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span className="text-xs text-zinc-400">Sub-tasks: {rows.length - (rows.filter(r => !r.parent_row_id).length)}</span>
+              </div>
             </div>
           </div>
 
-          {/* Divider (Mobile Only) */}
-          <div className="h-px bg-white/5 md:hidden" />
-
           {/* Right: AI Actions */}
-          <div className="flex-1 flex flex-col gap-3">
+          <div className="flex-1 flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-indigo-400">
                 <Sparkles className="w-4 h-4 animate-pulse" />
@@ -138,11 +191,11 @@ export const DatabaseSummary = ({ fields, rows }: DatabaseSummaryProps) => {
                 <BrainCircuit
                   className={cn("w-3 h-3", isGenerating && "animate-spin")}
                 />
-                Refresh Summary
+                Refresh Analysis
               </Button>
             </div>
 
-            <div className="relative min-h-[80px] p-4 bg-zinc-900/50 border border-white/5 rounded-xl">
+            <div className="relative min-h-[120px] p-4 bg-zinc-900/50 border border-white/5 rounded-xl">
               {isGenerating ? (
                 <div className="absolute inset-0 flex items-center justify-center gap-3">
                   <div className="flex gap-1">
@@ -151,7 +204,7 @@ export const DatabaseSummary = ({ fields, rows }: DatabaseSummaryProps) => {
                     <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce" />
                   </div>
                   <span className="text-xs text-zinc-500 font-medium italic">
-                    AI sedang menganalisis data...
+                    AI sedang menganalisis hirarki tugas...
                   </span>
                 </div>
               ) : summary ? (
@@ -161,7 +214,7 @@ export const DatabaseSummary = ({ fields, rows }: DatabaseSummaryProps) => {
               ) : (
                 <div className="flex items-center justify-center h-full">
                   <p className="text-xs text-zinc-500 italic">
-                    Klik tombol untuk merangkum tugas halaman ini.
+                    Klik tombol untuk merangkum analisis tugas.
                   </p>
                 </div>
               )}

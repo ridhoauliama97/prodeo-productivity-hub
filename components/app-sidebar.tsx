@@ -17,7 +17,7 @@ import {
   Palette,
   Monitor,
   Search,
-  Inbox,
+  Bell,
   Settings,
   Check,
   Paintbrush,
@@ -27,8 +27,11 @@ import {
   AudioWaveform,
   Command,
   LayoutDashboard,
+  Mail,
+  MessageSquare,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   Sidebar,
@@ -69,7 +72,7 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase-client";
-import { fetchInboxCount } from "@/lib/api-client";
+import { fetchInboxCount, fetchWorkspacesApi } from "@/lib/api-client";
 import type { Workspace, Page } from "@/lib/types";
 import { ConfirmModal } from "./modals/confirm-modal";
 
@@ -115,6 +118,8 @@ export function AppSidebar({
   } | null>(null);
   const [internalUnreadCount, setInternalUnreadCount] = useState(0);
   const [appearanceColor, setAppearanceColor] = useState<string>("default");
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const router = useRouter();
 
   useEffect(() => {
     const savedColor = localStorage.getItem("appearance_color");
@@ -231,6 +236,23 @@ export function AppSidebar({
       window.removeEventListener("profile_updated", handleProfileUpdate);
     };
   }, [user]);
+  
+  useEffect(() => {
+    const loadWorkspaces = async () => {
+      if (!user) return;
+      try {
+        const data = await fetchWorkspacesApi();
+        setWorkspaces(data || []);
+      } catch (err) {
+        console.error("Failed to fetch workspaces:", err);
+      }
+    };
+    loadWorkspaces();
+  }, [user]);
+
+  const handleWorkspaceSwitch = (id: string) => {
+    router.push(`/workspace/${id}`);
+  };
 
   const rootPages = pages.filter((p) => !p.parent_page_id);
 
@@ -434,22 +456,64 @@ export function AppSidebar({
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-            >
-              <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg text-xs font-bold">
-                {workspace?.name?.charAt(0) || "W"}
-              </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">
-                  {workspace?.name || "Workspace"}
-                </span>
-                <span className="truncate text-xs text-sidebar-foreground/50">
-                  Prodeo Hub
-                </span>
-              </div>
-            </SidebarMenuButton>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton
+                  size="lg"
+                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                >
+                  <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg text-xs font-bold">
+                    {workspace?.name?.charAt(0) || "W"}
+                  </div>
+                  <div className="grid flex-1 text-left text-sm leading-tight">
+                    <span className="truncate font-semibold">
+                      {workspace?.name || "Workspace"}
+                    </span>
+                    <span className="truncate text-xs text-sidebar-foreground/50">
+                      Prodeo Hub
+                    </span>
+                  </div>
+                  <ChevronsUpDown className="ml-auto size-4 opacity-50" />
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+                align="start"
+                side="bottom"
+                sideOffset={4}
+              >
+                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                  Workspaces
+                </div>
+                {workspaces.map((ws) => (
+                  <DropdownMenuItem
+                    key={ws.id}
+                    onClick={() => handleWorkspaceSwitch(ws.id)}
+                    className="flex items-center gap-2 px-2 py-2 cursor-pointer"
+                  >
+                    <div className="flex aspect-square size-6 items-center justify-center rounded-md border bg-background text-[10px] font-medium">
+                      {ws.name.charAt(0)}
+                    </div>
+                    <span className={cn(
+                      "flex-1 truncate",
+                      ws.id === workspace?.id && "font-semibold text-primary"
+                    )}>
+                      {ws.name}
+                    </span>
+                    {ws.id === workspace?.id && (
+                      <Check className="size-4 text-primary" />
+                    )}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/workspaces" className="flex items-center gap-2 px-2 py-2 cursor-pointer">
+                    <Plus className="size-4" />
+                    <span className="text-sm">Create or Join Workspace</span>
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
@@ -479,9 +543,9 @@ export function AppSidebar({
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton onClick={onOpenInbox} tooltip="Inbox">
-                  <Inbox className="w-4 h-4" />
-                  <span>Inbox</span>
+                <SidebarMenuButton onClick={onOpenInbox} tooltip="Notifikasi">
+                  <Bell className="w-4 h-4" />
+                  <span>Notifikasi</span>
                 </SidebarMenuButton>
                 {unreadCount > 0 && (
                   <SidebarMenuBadge>
@@ -495,6 +559,33 @@ export function AppSidebar({
                 <SidebarMenuButton onClick={onOpenSettings} tooltip="Settings">
                   <Settings className="w-4 h-4" />
                   <span>Settings</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
+        {/* Communication Group */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Communication</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Email">
+                  <Link href={`/workspace/${workspace?.id}/email`}>
+                    <Mail className="w-4 h-4" />
+                    <span>Email</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Chat">
+                  <Link href={`/workspace/${workspace?.id}/chat`}>
+                    <MessageSquare className="w-4 h-4" />
+                    <span>Chat</span>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

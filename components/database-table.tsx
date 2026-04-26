@@ -197,6 +197,18 @@ export function DatabaseTable({
           database_id: "",
         });
       }
+    } else if (oldCompleted && !newCompleted) {
+      // Status changed FROM completed to non-completed — clear Finished At
+      const finishedAtField = fields.find((f) =>
+        f.name.toLowerCase() === "finished at" ||
+        f.name.toLowerCase() === "finished_at" ||
+        f.name.toLowerCase() === "completed at"
+      );
+
+      if (finishedAtField && updatedProperties[finishedAtField.id]) {
+        updatedProperties[finishedAtField.id] = "";
+        toast.info("Finished At cleared automatically");
+      }
     }
 
     // Comment Notification

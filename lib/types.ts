@@ -96,3 +96,28 @@ export interface View {
   properties: Record<string, any>
   created_at: string
 }
+
+export interface Message {
+  id: string
+  workspace_id: string
+  sender_id: string
+  receiver_id?: string
+  content: string
+  created_at: string
+  sender?: UserProfile
+}
+
+export interface Email {
+  id: string
+  workspace_id: string
+  sender_id: string
+  receiver_id: string
+  subject: string
+  body: string
+  is_read: boolean
+  is_starred: boolean
+  folder: string
+  created_at: string
+  sender?: UserProfile
+  receiver?: UserProfile
+}
