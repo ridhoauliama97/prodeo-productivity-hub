@@ -590,7 +590,11 @@ export function Sidebar({
                 Documentation
               </DropdownMenuItem>
               <DropdownMenuItem className="cursor-pointer" asChild>
-                <a href="https://github.com/ridhoauliama97/prodeo-productivity-hub" target="_blank" rel="noopener noreferrer">
+                <a
+                  href="https://github.com/ridhoauliama97/prodeo-productivity-hub"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   <Github className="w-4 h-4 mr-2" />
                   GitHub repository
                 </a>

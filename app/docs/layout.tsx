@@ -137,7 +137,7 @@ export default function DocsLayout({
               ref={searchInputRef}
               type="search"
               placeholder={t.search}
-              className="pl-10 h-10 bg-background/50 dark:bg-white/[0.02] border-border/50 focus-visible:ring-primary/20 rounded-xl transition-all"
+              className="pl-10 h-10 bg-background/50 dark:bg-white/2 border-border/50 focus-visible:ring-primary/20 rounded-xl transition-all"
             />
             <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none hidden lg:flex items-center gap-1">
               <kbd className="h-5 select-none items-center gap-1 rounded-md border bg-muted/50 px-1.5 font-mono text-[10px] font-bold text-muted-foreground/60 opacity-100 flex">

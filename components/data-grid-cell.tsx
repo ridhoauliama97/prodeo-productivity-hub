@@ -112,7 +112,7 @@ export function DataGridCell({
   if (field.type === "date") {
     // Check if value is a standard YYYY-MM-DD date
     const isStandardDate = /^\d{4}-\d{2}-\d{2}$/.test(value || "");
-    
+
     return (
       <Input
         type={isStandardDate || !value ? "date" : "text"}
@@ -150,7 +150,10 @@ export function DataGridCell({
                 <span
                   className={cn(
                     "px-1.5 py-0.5 rounded text-xs",
-                    getStatusColorClass(selectedOption.value, selectedOption.color)
+                    getStatusColorClass(
+                      selectedOption.value,
+                      selectedOption.color,
+                    ),
                   )}
                 >
                   {selectedOption.value}
@@ -197,10 +200,10 @@ export function DataGridCell({
                         value === option.value ? "opacity-100" : "opacity-0",
                       )}
                     />
-                    <span 
+                    <span
                       className={cn(
                         "px-1.5 py-0.5 rounded text-xs",
-                        getStatusColorClass(option.value, option.color)
+                        getStatusColorClass(option.value, option.color),
                       )}
                     >
                       {option.value}
@@ -221,11 +224,11 @@ export function DataGridCell({
 
   if (field.type === "person") {
     return (
-      <PersonCell 
-        value={value} 
-        workspaceId={workspaceId} 
+      <PersonCell
+        value={value}
+        workspaceId={workspaceId}
         membersProp={members}
-        onChange={onChange} 
+        onChange={onChange}
       />
     );
   }
@@ -361,11 +364,20 @@ function MediaCell({
                 <div className="h-full w-full flex items-center justify-center relative">
                   <FileIcon className="h-3 w-3" />
                   {isGoogleDrive && (
-                    <div className="absolute bottom-0 right-0 bg-zinc-900 rounded-tl p-[1px]">
-                       <svg viewBox="0 0 40 40" className="w-2.5 h-2.5">
-                        <path fill="#FFC107" d="M17.09 7.66l-9.05 15.67h18.1l9.05-15.67z" />
-                        <path fill="#1976D2" d="M30.66 31.13h-18.1L3.51 15.46l9.05-15.67z" />
-                        <path fill="#4CAF50" d="M35.19 23.3l-9.05 15.67h-18.1l9.05-15.67z" />
+                    <div className="absolute bottom-0 right-0 bg-zinc-900 rounded-tl p-px">
+                      <svg viewBox="0 0 40 40" className="w-2.5 h-2.5">
+                        <path
+                          fill="#FFC107"
+                          d="M17.09 7.66l-9.05 15.67h18.1l9.05-15.67z"
+                        />
+                        <path
+                          fill="#1976D2"
+                          d="M30.66 31.13h-18.1L3.51 15.46l9.05-15.67z"
+                        />
+                        <path
+                          fill="#4CAF50"
+                          d="M35.19 23.3l-9.05 15.67h-18.1l9.05-15.67z"
+                        />
                       </svg>
                     </div>
                   )}
@@ -393,7 +405,10 @@ function MediaCell({
         </div>
       ) : (
         <>
-          <label className="flex items-center justify-center h-7 w-7 rounded border border-dashed border-border hover:bg-muted/50 cursor-pointer transition-colors" title="Upload File">
+          <label
+            className="flex items-center justify-center h-7 w-7 rounded border border-dashed border-border hover:bg-muted/50 cursor-pointer transition-colors"
+            title="Upload File"
+          >
             <Plus className="h-3 w-3 text-muted-foreground" />
             <input
               type="file"
@@ -403,16 +418,25 @@ function MediaCell({
               accept="image/*,video/*,application/pdf"
             />
           </label>
-          <button 
+          <button
             type="button"
             onClick={() => setIsDrivePickerOpen(true)}
-            className="flex items-center justify-center h-7 w-7 rounded border border-dashed border-border hover:bg-muted/50 cursor-pointer transition-colors" 
+            className="flex items-center justify-center h-7 w-7 rounded border border-dashed border-border hover:bg-muted/50 cursor-pointer transition-colors"
             title="Add from Google Drive"
           >
             <svg viewBox="0 0 40 40" className="w-4 h-4 transition-all">
-              <path fill="#FFC107" d="M17.09 7.66l-9.05 15.67h18.1l9.05-15.67z" />
-              <path fill="#1976D2" d="M30.66 31.13h-18.1L3.51 15.46l9.05-15.67z" />
-              <path fill="#4CAF50" d="M35.19 23.3l-9.05 15.67h-18.1l9.05-15.67z" />
+              <path
+                fill="#FFC107"
+                d="M17.09 7.66l-9.05 15.67h18.1l9.05-15.67z"
+              />
+              <path
+                fill="#1976D2"
+                d="M30.66 31.13h-18.1L3.51 15.46l9.05-15.67z"
+              />
+              <path
+                fill="#4CAF50"
+                d="M35.19 23.3l-9.05 15.67h-18.1l9.05-15.67z"
+              />
             </svg>
           </button>
         </>
