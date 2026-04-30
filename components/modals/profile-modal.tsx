@@ -23,6 +23,12 @@ import {
   Mail,
   Globe,
   Save,
+  Loader2,
+  Check,
+  X,
+  ExternalLink,
+  Unlink,
+  Link2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -78,15 +84,60 @@ export function ProfileModal({
     },
   });
 
+  // Google connection state
+  const [googleStatus, setGoogleStatus] = React.useState<{
+    connected: boolean;
+    email: string | null;
+    loading: boolean;
+  }>({ connected: false, email: null, loading: true });
+  const [isLinkingGoogle, setIsLinkingGoogle] = React.useState(false);
+  const [isUnlinkingGoogle, setIsUnlinkingGoogle] = React.useState(false);
+  const [googleIdentity, setGoogleIdentity] = React.useState<any>(null);
+  const [githubIdentity, setGithubIdentity] = React.useState<any>(null);
+
   const supabase = createClient();
   const router = useRouter();
 
 
 
+  // Fetch Google connection status
+  const fetchGoogleStatus = React.useCallback(async () => {
+    if (!user) return;
+    try {
+      setGoogleStatus((prev) => ({ ...prev, loading: true }));
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+
+      const res = await fetch('/api/auth/google/status', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await res.json();
+      setGoogleStatus({
+        connected: data.connected || false,
+        email: data.email || null,
+        loading: false,
+      });
+    } catch {
+      setGoogleStatus({ connected: false, email: null, loading: false });
+    }
+  }, [user, supabase]);
+
   React.useEffect(() => {
     const fetchProfile = async () => {
       if (!user) return;
       setEmail(user.email || "");
+
+      // Get user identities to check linked providers
+      const { data: { user: fullUser } } = await supabase.auth.getUser();
+      if (fullUser?.identities) {
+        setGoogleIdentity(
+          fullUser.identities.find((i) => i.provider === 'google') || null
+        );
+        setGithubIdentity(
+          fullUser.identities.find((i) => i.provider === 'github') || null
+        );
+      }
+
       const { data, error } = await supabase
         .from("user_profiles")
         .select("*")
@@ -107,7 +158,8 @@ export function ProfileModal({
       }
     };
     fetchProfile();
-  }, [user, supabase]);
+    fetchGoogleStatus();
+  }, [user, supabase, fetchGoogleStatus]);
 
   const handleUpdateProfile = async () => {
     if (!user) return;
@@ -246,14 +298,81 @@ export function ProfileModal({
     }
   };
 
-  const handleLinkAccount = async (provider: "google" | "github") => {
+  const handleLinkGoogle = async () => {
     try {
-      const { data, error } = await supabase.auth.linkIdentity({ provider });
+      setIsLinkingGoogle(true);
+      const { data, error } = await supabase.auth.linkIdentity({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?next=/workspaces`,
+          scopes: 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.email',
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      });
       if (error) throw error;
-      toast.success(`Successfully linked ${provider} account`);
+      // The user will be redirected to Google OAuth consent screen
+      // After granting permission, they'll be redirected back via /auth/callback
     } catch (error: any) {
-      console.error(`Error linking ${provider}:`, error);
-      toast.error(`Error connecting to ${provider}`);
+      console.error('Error linking Google:', error);
+      if (error.message?.includes('Identity is already linked')) {
+        toast.error('This Google account is already linked to another user.');
+      } else if (error.message?.includes('Manual linking is disabled')) {
+        toast.error('Account linking is not enabled. Please contact the administrator.');
+      } else {
+        toast.error(error.message || 'Failed to connect Google account');
+      }
+      setIsLinkingGoogle(false);
+    }
+  };
+
+  const handleUnlinkGoogle = async () => {
+    if (!googleIdentity) return;
+    try {
+      setIsUnlinkingGoogle(true);
+
+      // Remove the identity from Supabase Auth
+      const { error } = await supabase.auth.unlinkIdentity(googleIdentity);
+      if (error) throw error;
+
+      // Remove stored Google tokens
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        await fetch('/api/auth/google/status', {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+      }
+
+      setGoogleIdentity(null);
+      setGoogleStatus({ connected: false, email: null, loading: false });
+      toast.success('Google account disconnected');
+    } catch (error: any) {
+      console.error('Error unlinking Google:', error);
+      if (error.message?.includes('Cannot unlink')) {
+        toast.error('Cannot disconnect: you need at least one login method.');
+      } else {
+        toast.error(error.message || 'Failed to disconnect Google account');
+      }
+    } finally {
+      setIsUnlinkingGoogle(false);
+    }
+  };
+
+  const handleLinkGithub = async () => {
+    try {
+      const { data, error } = await supabase.auth.linkIdentity({
+        provider: 'github',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?next=/workspaces`,
+        },
+      });
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('Error linking GitHub:', error);
+      toast.error(error.message || 'Failed to connect GitHub account');
     }
   };
 
@@ -680,24 +799,150 @@ export function ProfileModal({
                         Connected Accounts
                       </h2>
                       <p className="text-zinc-500 text-sm">
-                        Link your account to social providers.
+                        Link your account to external providers for additional features like Google Drive access.
                       </p>
                     </header>
-                    <div className="flex gap-4">
-                      <Button
-                        variant="outline"
-                        className="flex-1 bg-zinc-900 border-white/10 text-white"
-                        onClick={() => handleLinkAccount("google")}
-                      >
-                        Google
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="flex-1 bg-zinc-900 border-white/10 text-white"
-                        onClick={() => handleLinkAccount("github")}
-                      >
-                        GitHub
-                      </Button>
+
+                    <div className="space-y-3">
+                      {/* Google Account */}
+                      <div className="rounded-xl border border-white/5 bg-zinc-900/50 p-4 transition-all hover:bg-zinc-900/80">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/5">
+                              <svg viewBox="0 0 24 24" className="h-5 w-5" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
+                                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                              </svg>
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="text-sm font-semibold text-white">Google</h4>
+                                {googleStatus.loading ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-500" />
+                                ) : googleStatus.connected || googleIdentity ? (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400 ring-1 ring-emerald-500/20">
+                                    <Check className="h-3 w-3" />
+                                    Connected
+                                  </span>
+                                ) : null}
+                              </div>
+                              {googleStatus.connected && googleStatus.email ? (
+                                <p className="text-[11px] text-zinc-500 mt-0.5">
+                                  {googleStatus.email} · Google Drive access enabled
+                                </p>
+                              ) : googleIdentity ? (
+                                <p className="text-[11px] text-zinc-500 mt-0.5">
+                                  {googleIdentity.identity_data?.email || 'Linked'}
+                                </p>
+                              ) : (
+                                <p className="text-[11px] text-zinc-500 mt-0.5">
+                                  Connect to enable Google Drive access
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {googleStatus.connected || googleIdentity ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 gap-1.5 border-red-500/20 bg-red-500/5 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                                onClick={handleUnlinkGoogle}
+                                disabled={isUnlinkingGoogle}
+                              >
+                                {isUnlinkingGoogle ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Unlink className="h-3.5 w-3.5" />
+                                )}
+                                Disconnect
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 gap-1.5 border-white/10 bg-white/5 text-white hover:bg-white/10"
+                                onClick={handleLinkGoogle}
+                                disabled={isLinkingGoogle}
+                              >
+                                {isLinkingGoogle ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Link2 className="h-3.5 w-3.5" />
+                                )}
+                                Connect
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* GitHub Account */}
+                      <div className="rounded-xl border border-white/5 bg-zinc-900/50 p-4 transition-all hover:bg-zinc-900/80">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/5">
+                              <svg viewBox="0 0 24 24" className="h-5 w-5 fill-white" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                              </svg>
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="text-sm font-semibold text-white">GitHub</h4>
+                                {githubIdentity ? (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400 ring-1 ring-emerald-500/20">
+                                    <Check className="h-3 w-3" />
+                                    Connected
+                                  </span>
+                                ) : null}
+                              </div>
+                              {githubIdentity ? (
+                                <p className="text-[11px] text-zinc-500 mt-0.5">
+                                  {githubIdentity.identity_data?.user_name || githubIdentity.identity_data?.email || 'Linked'}
+                                </p>
+                              ) : (
+                                <p className="text-[11px] text-zinc-500 mt-0.5">
+                                  Connect your GitHub account
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {githubIdentity ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 gap-1.5 border-red-500/20 bg-red-500/5 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                                onClick={async () => {
+                                  try {
+                                    const { error } = await supabase.auth.unlinkIdentity(githubIdentity);
+                                    if (error) throw error;
+                                    setGithubIdentity(null);
+                                    toast.success('GitHub account disconnected');
+                                  } catch (error: any) {
+                                    toast.error(error.message || 'Failed to disconnect GitHub');
+                                  }
+                                }}
+                              >
+                                <Unlink className="h-3.5 w-3.5" />
+                                Disconnect
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 gap-1.5 border-white/10 bg-white/5 text-white hover:bg-white/10"
+                                onClick={handleLinkGithub}
+                              >
+                                <Link2 className="h-3.5 w-3.5" />
+                                Connect
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </section>
 

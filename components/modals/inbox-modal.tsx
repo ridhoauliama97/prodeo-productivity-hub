@@ -21,7 +21,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { fetchInbox, markInboxAllRead, markInboxRead } from "@/lib/api-client";
+import { fetchInbox, markInboxAllRead, markInboxRead, authFetch } from "@/lib/api-client";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
@@ -115,11 +115,9 @@ export function InboxModal({ isOpen, onClose }: InboxModalProps) {
   ) => {
     e.stopPropagation();
     try {
-      const formData = new FormData();
-      formData.append("token", token);
-      const res = await fetch("/api/invite/accept", {
+      const res = await authFetch("/api/invite/accept", {
         method: "POST",
-        body: formData,
+        body: JSON.stringify({ token }),
       });
       if (res.ok) {
         toast.success("Invitation accepted! You have joined the workspace.");
@@ -128,9 +126,15 @@ export function InboxModal({ isOpen, onClose }: InboxModalProps) {
       } else {
         const error = await res.json();
         toast.error(error.error || "Failed to accept invitation");
+        
+        // If the invitation is invalid/expired/already used, mark notification as read
+        if (res.status === 404 || res.status === 410) {
+          handleMarkRead(notifId);
+        }
       }
     } catch (err) {
-      toast.error("Error accepting invitation");
+      console.error("Catch Error accepting invitation:", err);
+      toast.error("Network error or server failed to respond.");
     }
   };
 
@@ -207,15 +211,23 @@ export function InboxModal({ isOpen, onClose }: InboxModalProps) {
 
                 return (
                   <div key={notif.id}>
-                    <button
-                      onClick={() => navigateToNotification(notif)}
-                      className={cn(
-                        "w-full text-left px-6 py-4 transition-colors flex items-start justify-between group",
-                        notif.read
-                          ? "hover:bg-muted/30 opacity-60"
-                          : "hover:bg-muted/50 bg-primary/5",
-                      )}
-                    >
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => navigateToNotification(notif)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        navigateToNotification(notif);
+                      }
+                    }}
+                    className={cn(
+                      "w-full text-left px-6 py-4 transition-colors flex items-start justify-between group cursor-pointer outline-none focus-visible:bg-muted/50",
+                      notif.read
+                        ? "hover:bg-muted/30 opacity-60"
+                        : "hover:bg-muted/50 bg-primary/5",
+                    )}
+                  >
                       <div className="flex items-start gap-3 pr-4 flex-1 min-w-0">
                         {/* Status Icon Indicator based on type */}
                         <div className="mt-1 shrink-0">
@@ -380,7 +392,7 @@ export function InboxModal({ isOpen, onClose }: InboxModalProps) {
                       {(!isInvite || notif.read) && (
                         <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity mt-1.5 shrink-0" />
                       )}
-                    </button>
+                    </div>
                     {index < notifications.length - 1 && <Separator />}
                   </div>
                 );

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "next-themes";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,6 +30,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const emailRef = useRef<HTMLInputElement>(null);
 
   const [lang, setLang] = useState<"en" | "id">("en");
 
@@ -54,13 +56,35 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    if (!email) {
+      toast.error(lang === "id" ? "Email harus diisi" : "Email is required");
+      emailRef.current?.focus();
+      return;
+    }
+    if (!password) {
+      toast.error(
+        lang === "id" ? "Kata sandi harus diisi" : "Password is required",
+      );
+      return;
+    }
+
     setLoading(true);
 
     try {
+      document.cookie = `rememberMe=${rememberMe ? "true" : "false"}; path=/; max-age=31536000`;
+      localStorage.setItem("rememberMe", rememberMe ? "true" : "false");
       await signIn(email, password);
+      toast.success(lang === "id" ? "Login berhasil" : "Login successful");
       router.push("/workspaces");
     } catch (err: any) {
-      setError(err.message || "Failed to sign in");
+      const errorMsg =
+        err.message || (lang === "id" ? "Gagal masuk" : "Failed to sign in");
+      toast.error(errorMsg);
+      setError(errorMsg);
+      setEmail("");
+      setPassword("");
+      emailRef.current?.focus();
     } finally {
       setLoading(false);
     }
@@ -94,7 +118,7 @@ export default function LoginPage() {
       noAccount: "Belum punya akun?",
       signUp: "Daftar",
       error: "Gagal masuk",
-    }
+    },
   }[lang];
 
   return (
@@ -129,45 +153,42 @@ export default function LoginPage() {
       {/* App Logo */}
       <div className="mb-2 flex flex-col items-center gap-4 group cursor-default">
         <div className="relative w-50 h-30 group-hover:scale-110 transition-transform duration-500">
-          {mounted ? (
-            <Image
-              src={
-                resolvedTheme === "dark"
-                  ? "/logo-bg-dark.png"
-                  : "/logo-bg-white.png"
-              }
-              alt="Prodeo Logo"
-              fill
-              className="object-contain"
-              priority
-            />
-          ) : (
-            <div className="w-full h-full bg-primary/10 rounded-2xl animate-pulse" />
-          )}
+          <Link href="/" className="cursor-pointer">
+            {mounted ? (
+              <Image
+                src={
+                  resolvedTheme === "dark"
+                    ? "/logo-bg-dark.png"
+                    : "/logo-bg-white.png"
+                }
+                alt="Prodeo Logo"
+                fill
+                className="object-contain"
+                priority
+              />
+            ) : (
+              <div className="w-full h-full bg-primary/10 rounded-2xl animate-pulse" />
+            )}
+          </Link>
         </div>
       </div>
 
       <Card className="w-full max-w-md shadow-2xl shadow-primary/5 border-primary/5">
-        <CardHeader className="space-y-2 pb-8">
+        <CardHeader className="space-y-2 pb-2">
           <CardTitle className="text-2xl font-bold tracking-tight">
             {content.welcome}
           </CardTitle>
-          <CardDescription>
-            {content.desc}
-          </CardDescription>
+          <CardDescription>{content.desc}</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="bg-red-50 text-red-700 p-3 rounded-md text-sm">
-                {error}
-              </div>
-            )}
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             <div className="space-y-2">
               <Label htmlFor="email">{content.email}</Label>
               <Input
                 id="email"
                 type="email"
+                ref={emailRef}
+                autoFocus
                 placeholder={content.emailPlaceholder}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -188,7 +209,7 @@ export default function LoginPage() {
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
+                  placeholder="Your Password"
                   className="pr-10"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -226,10 +247,13 @@ export default function LoginPage() {
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="flex justify-center border-t py-4 bg-muted/20">
+        <CardFooter className="flex justify-center border-t py-4">
           <p className="text-sm text-muted-foreground">
             {content.noAccount}{" "}
-            <Link href="/signup" className="text-primary hover:underline font-bold">
+            <Link
+              href="/signup"
+              className="text-primary hover:underline font-bold"
+            >
               {content.signUp}
             </Link>
           </p>

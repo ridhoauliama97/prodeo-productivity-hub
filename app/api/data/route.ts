@@ -228,25 +228,39 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: true, message: 'Invitation sent via in-app notification.' })
       } else {
         // User not found, try to send automatic email
+        let emailSent = false;
+        let emailError = '';
         try {
           const origin = req.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
           const inviteLink = `${origin}/invite/${invite.token}`
 
-          await sendInvitationEmail({
+          const result = await sendInvitationEmail({
             to: email,
             workspaceName: workspace?.name || 'a workspace',
             inviterName: inviter?.full_name || 'Someone',
             inviteLink
           })
-        } catch (emailErr) {
+          
+          if (result.success) {
+            emailSent = true;
+          } else {
+            emailError = result.error || 'Failed to send email via Resend';
+            console.error('Failed to send automatic invitation email:', emailError);
+          }
+        } catch (emailErr: any) {
           console.error('Failed to send automatic invitation email:', emailErr)
+          emailError = emailErr.message || 'Unknown internal error';
         }
 
         return NextResponse.json({ 
           success: true,
           invited: false, 
           invitation_token: invite.token,
-          message: 'User not found. An invitation email has been sent.' 
+          emailSent,
+          emailError,
+          message: emailSent 
+            ? 'User not found. An invitation email has been sent.' 
+            : 'User not found. Could not send email automatically (Resend configuration required).'
         })
       }
     }

@@ -865,7 +865,7 @@ export function AppSidebar({
               <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
                 <div className="h-1 w-1 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-[9px] font-bold text-emerald-500/80">
-                  v 1.2.11
+                  v 1.2.16
                 </span>
               </div>
             </div>

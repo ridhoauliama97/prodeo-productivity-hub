@@ -84,7 +84,15 @@ export function WorkspaceMembers({
       if (result.invitation_token) {
         setInviteResult({ token: result.invitation_token, email: inviteEmail });
         setInviteEmail("");
-        toast.info(result.message || "Invitation link generated");
+        if (result.emailSent === false) {
+          toast.error(
+            result.emailError 
+              ? `Email delivery failed: ${result.emailError}`
+              : "Email delivery failed. Please copy the link manually."
+          );
+        } else {
+          toast.info(result.message || "Invitation link generated and email sent.");
+        }
       } else {
         setInviteEmail("");
         toast.success("Member invited successfully!");

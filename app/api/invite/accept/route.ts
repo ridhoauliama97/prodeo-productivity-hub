@@ -1,21 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase-server";
+import { createSupabaseServerClient } from "@/lib/supabase-server-client";
 
 export async function POST(req: NextRequest) {
-  const formData = await req.formData();
-  const token = formData.get("token") as string;
+  const { token } = await req.json();
   
   if (!token) {
     return NextResponse.json({ error: "Token required" }, { status: 400 });
   }
 
-  const admin = createAdminClient();
+  const supabase = await createSupabaseServerClient();
   
-  // 1. Get current user
-  const { data: { user }, error: authError } = await admin.auth.getUser();
+  // 1. Get current user from session cookies
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) {
+    console.error("Auth error in invite accept:", authError);
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const admin = createAdminClient();
 
   // 2. Find invitation
   const { data: invitation, error: inviteError } = await admin
@@ -51,6 +54,9 @@ export async function POST(req: NextRequest) {
     .update({ status: "accepted" })
     .eq("id", invitation.id);
 
-  // 5. Redirect to workspace
-  return NextResponse.redirect(new URL(`/workspace/${invitation.workspace_id}`, req.url));
+  // 5. Return success
+  return NextResponse.json({ 
+    success: true, 
+    workspace_id: invitation.workspace_id 
+  });
 }

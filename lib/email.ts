@@ -29,7 +29,7 @@ export async function sendInvitationEmail({
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        from: "Prodeo Hub <onboarding@resend.dev>", // Note: For custom domains, you need to verify them in Resend
+        from: process.env.RESEND_FROM_EMAIL || "Prodeo Hub <onboarding@resend.dev>", // Note: For custom domains, you need to verify them in Resend
         to: [to],
         subject: `${inviterName} invited you to join ${workspaceName} on Prodeo Hub`,
         html: `
@@ -57,9 +57,13 @@ export async function sendInvitationEmail({
     });
 
     const data = await response.json();
-    return { success: response.ok, data };
-  } catch (error) {
+    if (!response.ok) {
+      console.error("Resend API Error:", data);
+      return { success: false, error: data.message || "Failed to send email" };
+    }
+    return { success: true, data };
+  } catch (error: any) {
     console.error("Error sending email:", error);
-    return { success: false, error };
+    return { success: false, error: error.message || "Unknown error" };
   }
 }

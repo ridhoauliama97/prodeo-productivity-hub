@@ -102,7 +102,7 @@ export default function SignupPage() {
       creating: "Membuat akun...",
       alreadyAccount: "Sudah punya akun?",
       signIn: "Masuk",
-    }
+    },
   }[lang];
 
   return (
@@ -137,21 +137,23 @@ export default function SignupPage() {
       {/* App Logo */}
       <div className="mb-2 flex flex-col items-center gap-4 group cursor-default">
         <div className="relative w-50 h-30 group-hover:scale-110 transition-transform duration-500">
-          {mounted ? (
-            <Image
-              src={
-                resolvedTheme === "dark"
-                  ? "/logo-bg-dark.png"
-                  : "/logo-bg-white.png"
-              }
-              alt="Prodeo Logo"
-              fill
-              className="object-contain"
-              priority
-            />
-          ) : (
-            <div className="w-full h-full bg-primary/10 rounded-2xl animate-pulse" />
-          )}
+          <Link href="/" className="cursor-pointer">
+            {mounted ? (
+              <Image
+                src={
+                  resolvedTheme === "dark"
+                    ? "/logo-bg-dark.png"
+                    : "/logo-bg-white.png"
+                }
+                alt="Prodeo Logo"
+                fill
+                className="object-contain"
+                priority
+              />
+            ) : (
+              <div className="w-full h-full bg-primary/10 rounded-2xl animate-pulse" />
+            )}
+          </Link>
         </div>
       </div>
 
@@ -245,10 +247,13 @@ export default function SignupPage() {
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="flex justify-center border-t py-4 bg-muted/20">
+        <CardFooter className="flex justify-center border-t py-4">
           <p className="text-sm text-muted-foreground">
             {content.alreadyAccount}{" "}
-            <Link href="/login" className="text-primary hover:underline font-bold">
+            <Link
+              href="/login"
+              className="text-primary hover:underline font-bold"
+            >
               {content.signIn}
             </Link>
           </p>

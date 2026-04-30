@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MediaPreview } from "./media-preview";
+import { GoogleDrivePicker } from "./google-drive-picker";
 import {
   Command,
   CommandEmpty,
@@ -278,6 +279,7 @@ function MediaCell({
     isOpen: false,
     index: 0,
   });
+  const [isDrivePickerOpen, setIsDrivePickerOpen] = useState(false);
   const supabase = createClient();
 
   // Ensure value is always an array of strings
@@ -332,12 +334,19 @@ function MediaCell({
       {mediaUrls.map((url, index) => {
         const isImage = url.match(/\.(jpeg|jpg|gif|png|webp|svg)/i);
         const isVideo = url.match(/\.(mp4|webm|ogg)/i);
+        const isGoogleDrive = url.includes("drive.google.com");
 
         return (
           <div key={index} className="group relative flex items-center">
             <div
               className="h-7 w-7 rounded bg-muted overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all border border-border/50 shrink-0"
-              onClick={() => setPreviewState({ isOpen: true, index })}
+              onClick={() => {
+                if (isGoogleDrive) {
+                  window.open(url, "_blank");
+                } else {
+                  setPreviewState({ isOpen: true, index });
+                }
+              }}
             >
               {isImage ? (
                 <img src={url} alt="" className="h-full w-full object-cover" />
@@ -349,8 +358,17 @@ function MediaCell({
                   </div>
                 </div>
               ) : (
-                <div className="h-full w-full flex items-center justify-center">
+                <div className="h-full w-full flex items-center justify-center relative">
                   <FileIcon className="h-3 w-3" />
+                  {isGoogleDrive && (
+                    <div className="absolute bottom-0 right-0 bg-zinc-900 rounded-tl p-[1px]">
+                       <svg viewBox="0 0 40 40" className="w-2.5 h-2.5">
+                        <path fill="#FFC107" d="M17.09 7.66l-9.05 15.67h18.1l9.05-15.67z" />
+                        <path fill="#1976D2" d="M30.66 31.13h-18.1L3.51 15.46l9.05-15.67z" />
+                        <path fill="#4CAF50" d="M35.19 23.3l-9.05 15.67h-18.1l9.05-15.67z" />
+                      </svg>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -374,17 +392,37 @@ function MediaCell({
           ...
         </div>
       ) : (
-        <label className="flex items-center justify-center h-7 w-7 rounded border border-dashed border-border hover:bg-muted/50 cursor-pointer transition-colors">
-          <Plus className="h-3 w-3 text-muted-foreground" />
-          <input
-            type="file"
-            className="hidden"
-            onChange={handleUpload}
-            multiple
-            accept="image/*,video/*,application/pdf"
-          />
-        </label>
+        <>
+          <label className="flex items-center justify-center h-7 w-7 rounded border border-dashed border-border hover:bg-muted/50 cursor-pointer transition-colors" title="Upload File">
+            <Plus className="h-3 w-3 text-muted-foreground" />
+            <input
+              type="file"
+              className="hidden"
+              onChange={handleUpload}
+              multiple
+              accept="image/*,video/*,application/pdf"
+            />
+          </label>
+          <button 
+            type="button"
+            onClick={() => setIsDrivePickerOpen(true)}
+            className="flex items-center justify-center h-7 w-7 rounded border border-dashed border-border hover:bg-muted/50 cursor-pointer transition-colors" 
+            title="Add from Google Drive"
+          >
+            <svg viewBox="0 0 40 40" className="w-4 h-4 transition-all">
+              <path fill="#FFC107" d="M17.09 7.66l-9.05 15.67h18.1l9.05-15.67z" />
+              <path fill="#1976D2" d="M30.66 31.13h-18.1L3.51 15.46l9.05-15.67z" />
+              <path fill="#4CAF50" d="M35.19 23.3l-9.05 15.67h-18.1l9.05-15.67z" />
+            </svg>
+          </button>
+        </>
       )}
+
+      <GoogleDrivePicker
+        isOpen={isDrivePickerOpen}
+        onClose={() => setIsDrivePickerOpen(false)}
+        onSelect={(fileUrl) => onChange([...mediaUrls, fileUrl])}
+      />
 
       <MediaPreview
         urls={mediaUrls}
