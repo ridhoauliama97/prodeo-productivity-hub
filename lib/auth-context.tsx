@@ -10,6 +10,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, full_name?: string) => Promise<void>
   signIn: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
+  resetPassword: (email: string) => Promise<{ link?: string, email?: string, token?: string } | undefined>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -88,8 +89,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw error
   }
 
+  const resetPassword = async (email: string) => {
+    console.log("Attempting password reset for:", email);
+    
+    // Using our custom API to bypass Supabase rate limits
+    const res = await fetch('/api/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        email, 
+        redirectTo: `${window.location.origin}/auth/reset-password` 
+      }),
+    })
+    
+    const json = await res.json()
+    if (!res.ok) {
+      console.error("Reset API Error:", json.error);
+      throw new Error(json.error || 'Failed to send reset link');
+    }
+
+    return {
+        link: json.testLink,
+        email: json.email,
+        token: json.token
+    };
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut, resetPassword }}>
       {children}
     </AuthContext.Provider>
   )

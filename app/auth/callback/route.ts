@@ -9,6 +9,28 @@ export async function GET(request: NextRequest) {
   const error = searchParams.get("error");
   const errorDescription = searchParams.get("error_description");
 
+  // Handle OTP/Magic Link/Recovery verification
+  const tokenHash = searchParams.get("token_hash");
+  const type = searchParams.get("type") as any;
+
+  if (tokenHash && type) {
+    const supabase = await createSupabaseServerClient();
+    const { error: verifyError } = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type,
+    });
+
+    if (verifyError) {
+      console.error("Error verifying token hash:", verifyError);
+      const redirectUrl = new URL("/login", origin);
+      redirectUrl.searchParams.set("auth_error", "verification_failed");
+      return NextResponse.redirect(redirectUrl);
+    }
+
+    // Success! Redirect to the intended page
+    return NextResponse.redirect(new URL(next, origin));
+  }
+
   // Handle OAuth errors
   if (error) {
     console.error("OAuth error:", error, errorDescription);
