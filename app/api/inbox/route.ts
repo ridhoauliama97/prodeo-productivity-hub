@@ -1,18 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase-server'
-import { createClient as createBrowserClient } from '@supabase/supabase-js'
+import { cookies } from 'next/headers'
+import { createClient } from '@/utils/supabase/server'
 
 async function getAuthUser(req: NextRequest) {
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+  
+  // 1. Try getting user from session/cookies
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (user) return user
+
+  // 2. Fallback to Authorization header if cookies are missing (e.g. from mobile or custom fetch)
   const authHeader = req.headers.get('Authorization')
-  if (!authHeader?.startsWith('Bearer ')) return null
-  const token = authHeader.replace('Bearer ', '')
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
-  const { data, error } = await supabase.auth.getUser(token)
-  if (error || !data.user) return null
-  return data.user
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.replace('Bearer ', '')
+    const { data: { user: headerUser } } = await supabase.auth.getUser(token)
+    return headerUser
+  }
+
+  return null
 }
 
 // GET /api/inbox — Fetch all notifications for the current user

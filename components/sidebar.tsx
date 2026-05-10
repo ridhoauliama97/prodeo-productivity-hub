@@ -164,8 +164,7 @@ export function Sidebar({
 
     // Also listen for a manual inbox_read event (from InboxModal)
     const handleInboxRead = () => {
-      setInternalUnreadCount(0);
-      onUnreadCountChange?.(0);
+      loadCount();
     };
     window.addEventListener("inbox_marked_read", handleInboxRead);
 
