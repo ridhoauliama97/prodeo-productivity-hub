@@ -21,53 +21,61 @@ async function getAuthUser(req: NextRequest) {
 
 // GET /api/workspaces - list user's workspaces
 export async function GET(req: NextRequest) {
-  const user = await getAuthUser(req)
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  try {
+    const user = await getAuthUser(req)
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
-  const admin = createAdminClient()
+    const admin = createAdminClient()
 
-  // Get workspaces where user is owner OR member
-  const { data: memberWorkspaceIds, error: memberError } = await admin
-    .from('workspace_members')
-    .select('workspace_id')
-    .eq('user_id', user.id)
+    // Get workspaces where user is owner OR member
+    const { data: memberWorkspaceIds, error: memberError } = await admin
+      .from('workspace_members')
+      .select('workspace_id')
+      .eq('user_id', user.id)
 
-  if (memberError) {
-    return NextResponse.json({ error: memberError.message }, { status: 500 })
-  }
+    if (memberError) {
+      return NextResponse.json({ error: memberError.message }, { status: 500 })
+    }
 
-  const wsIds = (memberWorkspaceIds || []).map((m: any) => m.workspace_id)
+    const wsIds = (memberWorkspaceIds || []).map((m: any) => m.workspace_id)
 
-  // Also include workspaces where user is owner
-  const { data: ownedWorkspaces, error: ownedError } = await admin
-    .from('workspaces')
-    .select('*')
-    .eq('owner_id', user.id)
-
-  if (ownedError) {
-    return NextResponse.json({ error: ownedError.message }, { status: 500 })
-  }
-
-  // Get member workspaces
-  let memberWorkspaces: any[] = []
-  if (wsIds.length > 0) {
-    const { data, error } = await admin
+    // Also include workspaces where user is owner
+    const { data: ownedWorkspaces, error: ownedError } = await admin
       .from('workspaces')
       .select('*')
-      .in('id', wsIds)
-    if (!error && data) {
-      memberWorkspaces = data
+      .eq('owner_id', user.id)
+
+    if (ownedError) {
+      return NextResponse.json({ error: ownedError.message }, { status: 500 })
     }
+
+    // Get member workspaces
+    let memberWorkspaces: any[] = []
+    if (wsIds.length > 0) {
+      const { data, error } = await admin
+        .from('workspaces')
+        .select('*')
+        .in('id', wsIds)
+      if (!error && data) {
+        memberWorkspaces = data
+      }
+    }
+
+    // Merge and deduplicate
+    const allWorkspaces = [...(ownedWorkspaces || []), ...memberWorkspaces]
+    const uniqueMap = new Map(allWorkspaces.map(w => [w.id, w]))
+    const workspaces = Array.from(uniqueMap.values())
+
+    return NextResponse.json({ workspaces })
+  } catch (error: any) {
+    console.error('Workspaces GET error:', error)
+    return NextResponse.json(
+      { error: error.message || 'An unexpected error occurred' },
+      { status: 500 }
+    )
   }
-
-  // Merge and deduplicate
-  const allWorkspaces = [...(ownedWorkspaces || []), ...memberWorkspaces]
-  const uniqueMap = new Map(allWorkspaces.map(w => [w.id, w]))
-  const workspaces = Array.from(uniqueMap.values())
-
-  return NextResponse.json({ workspaces })
 }
 
 // POST /api/workspaces - create a new workspace

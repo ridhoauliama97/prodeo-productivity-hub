@@ -20,3 +20,11 @@ node_modules
 test-drive.js
 test-resend.js
 scripts/
+
+# Agent-specific files
+.agents/
+.claude/
+.cortex/
+.gemini/
+.mcp.json
+skills-lock.json

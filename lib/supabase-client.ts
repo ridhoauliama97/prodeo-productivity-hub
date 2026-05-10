@@ -21,9 +21,19 @@ export function createClient() {
     }
   }
 
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('Supabase URL or Anon Key is missing. Check your .env.local file.')
+    // Return a dummy client or handle gracefully to prevent app crash
+    // but in this case, @supabase/ssr will throw an error anyway if we pass empty strings.
+    // Providing clear logs is the first step.
+  }
+
   return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl || '',
+    supabaseAnonKey || '',
     {
       cookieOptions
     }

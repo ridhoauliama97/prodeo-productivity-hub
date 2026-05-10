@@ -30,12 +30,26 @@ export async function authFetch(url: string, options: RequestInit = {}): Promise
 
 export async function fetchWorkspacesApi() {
   const res = await authFetch('/api/workspaces')
+  
   if (!res.ok) {
-    const err = await res.json()
-    throw new Error(err.error || 'Failed to fetch workspaces')
+    let errorMessage = 'Failed to fetch workspaces'
+    const text = await res.text()
+    try {
+      const err = JSON.parse(text)
+      errorMessage = err.error || errorMessage
+    } catch (e) {
+      errorMessage = `Server Error (${res.status}): ${text.slice(0, 200)}...`
+    }
+    throw new Error(errorMessage)
   }
-  const json = await res.json()
-  return json.workspaces
+
+  const text = await res.text()
+  try {
+    const json = JSON.parse(text)
+    return json.workspaces
+  } catch (e) {
+    throw new Error(`Invalid JSON response: ${text.slice(0, 200)}...`)
+  }
 }
 
 export async function createWorkspaceApi(name: string) {
