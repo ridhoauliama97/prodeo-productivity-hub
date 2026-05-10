@@ -1,26 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase-server'
-import { cookies } from 'next/headers'
-import { createClient } from '@/utils/supabase/server'
-
-async function getAuthUser(req: NextRequest) {
-  const cookieStore = await cookies()
-  const supabase = createClient(cookieStore)
-  
-  // 1. Try getting user from session/cookies
-  const { data: { user }, error } = await supabase.auth.getUser()
-  if (user) return user
-
-  // 2. Fallback to Authorization header if cookies are missing
-  const authHeader = req.headers.get('Authorization')
-  if (authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.replace('Bearer ', '')
-    const { data: { user: headerUser } } = await supabase.auth.getUser(token)
-    return headerUser
-  }
-
-  return null
-}
+import { getAuthUser } from '@/lib/auth-server'
 
 async function refreshAccessToken(userId: string, refreshToken: string) {
   const clientId = process.env.GOOGLE_CLIENT_ID;

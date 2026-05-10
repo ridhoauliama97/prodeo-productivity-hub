@@ -27,6 +27,8 @@ export function useRealtimeListener(
             table: table,
           },
           (payload) => {
+            // Tiny debug helper
+            console.log('message', payload.eventType, payload)
             options.onMessage(payload)
           }
         )

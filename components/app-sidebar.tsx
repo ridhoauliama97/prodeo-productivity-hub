@@ -167,7 +167,9 @@ export function AppSidebar({
           table: "notifications",
           filter: `user_id=eq.${user.id}`,
         },
-        () => {
+        (payload) => {
+          // Tiny debug helper
+          console.log('notification', payload.eventType, payload)
           setInternalUnreadCount((prev) => {
             const next = prev + 1;
             onUnreadCountChange?.(next);
@@ -183,7 +185,9 @@ export function AppSidebar({
           table: "notifications",
           filter: `user_id=eq.${user.id}`,
         },
-        () => {
+        (payload) => {
+          // Tiny debug helper
+          console.log('notification', payload.eventType, payload)
           loadCount();
         },
       )

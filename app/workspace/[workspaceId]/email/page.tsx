@@ -46,7 +46,11 @@ import {
   Paperclip,
   Download,
   RotateCcw,
+  Mail,
+  MailOpen,
+  Check,
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import {
@@ -94,31 +98,138 @@ export default function EmailPage() {
     archive: 0,
     trash: 0,
   });
+  const [selectedEmailIds, setSelectedEmailIds] = useState<Set<string>>(new Set());
   const currentFolderRef = React.useRef(currentFolder);
 
   useEffect(() => {
     currentFolderRef.current = currentFolder;
   }, [currentFolder]);
 
+  // Helper: fetch a single email with joined sender/receiver profiles
+  const fetchEmailById = async (emailId: string) => {
+    const { data, error } = await supabase
+      .from("emails")
+      .select(`
+        *,
+        sender:user_profiles!sender_id(*),
+        receiver:user_profiles!receiver_id(*)
+      `)
+      .eq("id", emailId)
+      .single();
+
+    if (error) {
+      console.error("Error fetching email by id:", error);
+      return null;
+    }
+    return data;
+  };
+
+  // Helper: check if an email belongs in the current folder view
+  const emailBelongsInCurrentView = (email: any, folder: string): boolean => {
+    if (folder === "inbox") {
+      return email.receiver_id === user?.id && email.folder === "inbox";
+    } else if (folder === "sent") {
+      return email.sender_id === user?.id && email.folder !== "trash" && email.folder !== "archive";
+    } else if (folder === "drafts") {
+      return email.sender_id === user?.id && email.folder === "drafts";
+    } else if (folder === "trash") {
+      return email.folder === "trash" && (email.receiver_id === user?.id || email.sender_id === user?.id);
+    } else if (folder === "archive") {
+      return email.folder === "archive" && (email.receiver_id === user?.id || email.sender_id === user?.id);
+    } else if (folder === "starred") {
+      return email.is_starred && email.folder !== "trash" && (email.receiver_id === user?.id || email.sender_id === user?.id);
+    }
+    return false;
+  };
+
   useEffect(() => {
     if (!user || !workspaceId) return;
 
     const channel = supabase
-      .channel("emails-changes")
+      .channel(`email-realtime-${workspaceId}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "emails" },
-        (payload) => {
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "emails",
+          filter: `workspace_id=eq.${workspaceId}`,
+        },
+        async (payload) => {
+          const raw = payload.new as any;
           fetchFolderCounts();
-          if (
-            payload.eventType === "INSERT" &&
-            (payload.new as any).receiver_id === user.id
-          ) {
-            toast.info("New email received!");
-            if (currentFolderRef.current === "inbox") {
-              fetchEmails("inbox");
+
+          // Only show toast & update list for emails relevant to this user
+          if (raw.receiver_id === user.id) {
+            toast.info(`New email: ${raw.subject || "(No subject)"}`);
+          }
+
+          const folder = currentFolderRef.current;
+          if (emailBelongsInCurrentView(raw, folder)) {
+            // Fetch full email with joined profiles so avatar/name render correctly
+            const fullEmail = await fetchEmailById(raw.id);
+            if (fullEmail) {
+              setEmails(prev => {
+                // Guard against duplicates (in case local insert already added it)
+                if (prev.some(e => e.id === fullEmail.id)) return prev;
+                return [fullEmail, ...prev];
+              });
             }
           }
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "emails",
+          filter: `workspace_id=eq.${workspaceId}`,
+        },
+        (payload) => {
+          const updated = payload.new as any;
+          const folder = currentFolderRef.current;
+          fetchFolderCounts();
+
+          // Single atomic state update: merge changes AND filter out if it no longer belongs
+          setEmails(prev =>
+            prev.reduce<any[]>((acc, e) => {
+              if (e.id !== updated.id) {
+                acc.push(e);
+              } else {
+                const merged = { ...e, ...updated };
+                if (emailBelongsInCurrentView(merged, folder)) {
+                  acc.push(merged);
+                }
+                // else: email no longer belongs in this view, drop it
+              }
+              return acc;
+            }, [])
+          );
+
+          // Update selected email if it's the one that changed
+          setSelectedEmail((prev: any) => {
+            if (prev?.id === updated.id) {
+              return { ...prev, ...updated };
+            }
+            return prev;
+          });
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "emails",
+          filter: `workspace_id=eq.${workspaceId}`,
+        },
+        (payload) => {
+          const deleted = payload.old as any;
+          fetchFolderCounts();
+
+          setEmails(prev => prev.filter(e => e.id !== deleted.id));
+          setSelectedEmail((prev: any) => (prev?.id === deleted.id ? null : prev));
         },
       )
       .subscribe();
@@ -126,7 +237,8 @@ export default function EmailPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, workspaceId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, workspaceId]);
 
   // Compose form state
   const [composeTo, setComposeTo] = useState("");
@@ -346,9 +458,126 @@ export default function EmailPage() {
   const handleFolderChange = (folder: string) => {
     setCurrentFolder(folder);
     setSelectedEmail(null);
+    setSelectedEmailIds(new Set());
     setSearchQuery("");
     setActiveFilter("all");
     fetchEmails(folder);
+  };
+
+  const toggleEmailSelection = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const newSelected = new Set(selectedEmailIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedEmailIds(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedEmailIds.size === filteredEmails.length && filteredEmails.length > 0) {
+      setSelectedEmailIds(new Set());
+    } else {
+      setSelectedEmailIds(new Set(filteredEmails.map((e) => e.id)));
+    }
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedEmailIds.size === 0) return;
+
+    const idsToDelete = Array.from(selectedEmailIds);
+    const toastId = toast.loading(`${currentFolder === 'trash' ? 'Deleting' : 'Moving to trash'} ${selectedEmailIds.size} emails...`);
+
+    try {
+      let error;
+      if (currentFolder === 'trash') {
+        const { error: deleteError } = await supabase
+          .from('emails')
+          .delete()
+          .in('id', idsToDelete);
+        error = deleteError;
+      } else {
+        const { error: updateError } = await supabase
+          .from('emails')
+          .update({ folder: 'trash' })
+          .in('id', idsToDelete);
+        error = updateError;
+      }
+
+      if (error) throw error;
+
+      toast.success(`${idsToDelete.length} emails ${currentFolder === 'trash' ? 'deleted permanently' : 'moved to trash'}`, { id: toastId });
+      setEmails(emails.filter((e) => !selectedEmailIds.has(e.id)));
+      if (selectedEmail?.id && selectedEmailIds.has(selectedEmail.id)) {
+        setSelectedEmail(null);
+      }
+      setSelectedEmailIds(new Set());
+      fetchFolderCounts();
+    } catch (err) {
+      console.error("Error batch deleting emails:", err);
+      toast.error("Failed to delete emails", { id: toastId });
+    }
+  };
+
+  const handleBatchArchive = async () => {
+    if (selectedEmailIds.size === 0) return;
+
+    const idsToArchive = Array.from(selectedEmailIds);
+    const toastId = toast.loading(`Archiving ${selectedEmailIds.size} emails...`);
+
+    try {
+      const { error } = await supabase
+        .from('emails')
+        .update({ folder: 'archive' })
+        .in('id', idsToArchive);
+
+      if (error) throw error;
+
+      toast.success(`${idsToArchive.length} emails archived`, { id: toastId });
+      setEmails(emails.filter((e) => !selectedEmailIds.has(e.id)));
+      if (selectedEmail?.id && selectedEmailIds.has(selectedEmail.id)) {
+        setSelectedEmail(null);
+      }
+      setSelectedEmailIds(new Set());
+      fetchFolderCounts();
+    } catch (err) {
+      console.error("Error batch archiving emails:", err);
+      toast.error("Failed to archive emails", { id: toastId });
+    }
+  };
+
+  const handleBatchMarkAsRead = async (isRead: boolean) => {
+    if (selectedEmailIds.size === 0) return;
+
+    const ids = Array.from(selectedEmailIds);
+    const toastId = toast.loading(`Marking ${selectedEmailIds.size} emails as ${isRead ? 'read' : 'unread'}...`);
+
+    try {
+      const { error } = await supabase
+        .from('emails')
+        .update({ is_read: isRead })
+        .in('id', ids);
+
+      if (error) throw error;
+
+      toast.success(`${ids.length} emails marked as ${isRead ? 'read' : 'unread'}`, { id: toastId });
+      
+      // Update local state
+      setEmails(emails.map(email => 
+        selectedEmailIds.has(email.id) ? { ...email, is_read: isRead } : email
+      ));
+      
+      if (selectedEmail && selectedEmailIds.has(selectedEmail.id)) {
+        setSelectedEmail({ ...selectedEmail, is_read: isRead });
+      }
+      
+      setSelectedEmailIds(new Set());
+      fetchFolderCounts();
+    } catch (err) {
+      console.error("Error batch marking read/unread:", err);
+      toast.error("Failed to update emails", { id: toastId });
+    }
   };
 
   const handleSendEmail = async () => {
@@ -672,35 +901,54 @@ export default function EmailPage() {
           {/* Email Sidebar */}
           <div className="w-64 border-r bg-muted/10 hidden lg:flex flex-col">
             <div className="p-4">
-              <Button
-                className="w-full justify-start gap-2 h-12 rounded-2xl shadow-lg shadow-primary/10 hover:shadow-primary/20 transition-all"
-                onClick={() => setIsComposeOpen(true)}
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
-                <Plus className="w-5 h-5" />
-                <span className="font-semibold">Compose</span>
-              </Button>
+                <Button
+                  className="w-full justify-start gap-2 h-12 rounded-2xl shadow-lg shadow-primary/10 hover:shadow-primary/20 transition-all bg-gradient-to-r from-primary to-primary/80 border-none text-white"
+                  onClick={() => setIsComposeOpen(true)}
+                >
+                  <Plus className="w-5 h-5" />
+                  <span className="font-semibold">Compose</span>
+                </Button>
+              </motion.div>
             </div>
             <ScrollArea className="flex-1">
               <div className="px-3 py-2 space-y-1">
                 <Button
                   variant={currentFolder === "inbox" ? "secondary" : "ghost"}
-                  className={`w-full justify-start gap-3 h-10 rounded-xl ${currentFolder === "inbox" ? "bg-primary/10 text-primary hover:bg-primary/15" : "hover:bg-muted"}`}
+                  className={`w-full justify-start gap-3 h-10 rounded-xl relative overflow-hidden group ${currentFolder === "inbox" ? "bg-primary/10 text-primary" : "hover:bg-muted"}`}
                   onClick={() => handleFolderChange("inbox")}
                 >
-                  <Inbox className="w-4 h-4" />
+                  {currentFolder === "inbox" && (
+                    <motion.div
+                      layoutId="folder-active"
+                      className="absolute left-0 w-1 h-6 bg-primary rounded-r-full"
+                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    />
+                  )}
+                  <Inbox className={`w-4 h-4 transition-transform group-hover:scale-110 ${currentFolder === "inbox" ? "text-primary" : "text-muted-foreground"}`} />
                   <span className="flex-1 text-left font-medium">Inbox</span>
                   {unreadInboxCount > 0 && (
-                    <span className="text-[10px] font-bold bg-primary/10 px-1.5 py-0.5 rounded-full">
+                    <span className="text-[10px] font-bold bg-primary/10 px-1.5 py-0.5 rounded-full ring-1 ring-primary/20">
                       {unreadInboxCount}
                     </span>
                   )}
                 </Button>
                 <Button
                   variant={currentFolder === "starred" ? "secondary" : "ghost"}
-                  className={`w-full justify-start gap-3 h-10 rounded-xl ${currentFolder === "starred" ? "bg-primary/10 text-primary hover:bg-primary/15" : "hover:bg-muted"}`}
+                  className={`w-full justify-start gap-3 h-10 rounded-xl relative overflow-hidden group ${currentFolder === "starred" ? "bg-primary/10 text-primary" : "hover:bg-muted"}`}
                   onClick={() => handleFolderChange("starred")}
                 >
-                  <Star className="w-4 h-4" />
+                  {currentFolder === "starred" && (
+                    <motion.div
+                      layoutId="folder-active"
+                      className="absolute left-0 w-1 h-6 bg-primary rounded-r-full"
+                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    />
+                  )}
+                  <Star className={`w-4 h-4 transition-transform group-hover:scale-110 ${currentFolder === "starred" ? "text-primary" : "text-muted-foreground"}`} />
                   <span className="flex-1 text-left font-medium">Starred</span>
                   {folderCounts.starred > 0 && (
                     <span className="text-[10px] font-bold bg-muted-foreground/10 px-1.5 py-0.5 rounded-full">
@@ -710,10 +958,17 @@ export default function EmailPage() {
                 </Button>
                 <Button
                   variant={currentFolder === "sent" ? "secondary" : "ghost"}
-                  className={`w-full justify-start gap-3 h-10 rounded-xl ${currentFolder === "sent" ? "bg-primary/10 text-primary hover:bg-primary/15" : "hover:bg-muted"}`}
+                  className={`w-full justify-start gap-3 h-10 rounded-xl relative overflow-hidden group ${currentFolder === "sent" ? "bg-primary/10 text-primary" : "hover:bg-muted"}`}
                   onClick={() => handleFolderChange("sent")}
                 >
-                  <Send className="w-4 h-4" />
+                  {currentFolder === "sent" && (
+                    <motion.div
+                      layoutId="folder-active"
+                      className="absolute left-0 w-1 h-6 bg-primary rounded-r-full"
+                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    />
+                  )}
+                  <Send className={`w-4 h-4 transition-transform group-hover:scale-110 ${currentFolder === "sent" ? "text-primary" : "text-muted-foreground"}`} />
                   <span className="flex-1 text-left font-medium">Sent</span>
                   {folderCounts.sent > 0 && (
                     <span className="text-[10px] font-bold bg-muted-foreground/10 px-1.5 py-0.5 rounded-full">
@@ -723,10 +978,17 @@ export default function EmailPage() {
                 </Button>
                 <Button
                   variant={currentFolder === "drafts" ? "secondary" : "ghost"}
-                  className={`w-full justify-start gap-3 h-10 rounded-xl ${currentFolder === "drafts" ? "bg-primary/10 text-primary hover:bg-primary/15" : "hover:bg-muted"}`}
+                  className={`w-full justify-start gap-3 h-10 rounded-xl relative overflow-hidden group ${currentFolder === "drafts" ? "bg-primary/10 text-primary" : "hover:bg-muted"}`}
                   onClick={() => handleFolderChange("drafts")}
                 >
-                  <File className="w-4 h-4" />
+                  {currentFolder === "drafts" && (
+                    <motion.div
+                      layoutId="folder-active"
+                      className="absolute left-0 w-1 h-6 bg-primary rounded-r-full"
+                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    />
+                  )}
+                  <File className={`w-4 h-4 transition-transform group-hover:scale-110 ${currentFolder === "drafts" ? "text-primary" : "text-muted-foreground"}`} />
                   <span className="flex-1 text-left font-medium">Drafts</span>
                   {folderCounts.drafts > 0 && (
                     <span className="text-[10px] font-bold bg-muted-foreground/10 px-1.5 py-0.5 rounded-full">
@@ -736,10 +998,17 @@ export default function EmailPage() {
                 </Button>
                 <Button
                   variant={currentFolder === "archive" ? "secondary" : "ghost"}
-                  className={`w-full justify-start gap-3 h-10 rounded-xl ${currentFolder === "archive" ? "bg-primary/10 text-primary hover:bg-primary/15" : "hover:bg-muted"}`}
+                  className={`w-full justify-start gap-3 h-10 rounded-xl relative overflow-hidden group ${currentFolder === "archive" ? "bg-primary/10 text-primary" : "hover:bg-muted"}`}
                   onClick={() => handleFolderChange("archive")}
                 >
-                  <Archive className="w-4 h-4" />
+                  {currentFolder === "archive" && (
+                    <motion.div
+                      layoutId="folder-active"
+                      className="absolute left-0 w-1 h-6 bg-primary rounded-r-full"
+                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    />
+                  )}
+                  <Archive className={`w-4 h-4 transition-transform group-hover:scale-110 ${currentFolder === "archive" ? "text-primary" : "text-muted-foreground"}`} />
                   <span className="flex-1 text-left font-medium">Archive</span>
                   {folderCounts.archive > 0 && (
                     <span className="text-[10px] font-bold bg-muted-foreground/10 px-1.5 py-0.5 rounded-full">
@@ -749,10 +1018,17 @@ export default function EmailPage() {
                 </Button>
                 <Button
                   variant={currentFolder === "trash" ? "secondary" : "ghost"}
-                  className={`w-full justify-start gap-3 h-10 rounded-xl ${currentFolder === "trash" ? "bg-primary/10 text-primary hover:bg-primary/15" : "hover:bg-muted"}`}
+                  className={`w-full justify-start gap-3 h-10 rounded-xl relative overflow-hidden group ${currentFolder === "trash" ? "bg-primary/10 text-primary" : "hover:bg-muted"}`}
                   onClick={() => handleFolderChange("trash")}
                 >
-                  <Trash2 className="w-4 h-4" />
+                  {currentFolder === "trash" && (
+                    <motion.div
+                      layoutId="folder-active"
+                      className="absolute left-0 w-1 h-6 bg-primary rounded-r-full"
+                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    />
+                  )}
+                  <Trash2 className={`w-4 h-4 transition-transform group-hover:scale-110 ${currentFolder === "trash" ? "text-primary" : "text-muted-foreground"}`} />
                   <span className="flex-1 text-left font-medium">Trash</span>
                   {folderCounts.trash > 0 && (
                     <span className="text-[10px] font-bold bg-muted-foreground/10 px-1.5 py-0.5 rounded-full">
@@ -786,14 +1062,21 @@ export default function EmailPage() {
           <div
             className={`${selectedEmail ? "hidden xl:flex" : "flex"} w-full lg:w-[400px] border-r flex flex-col bg-muted/5`}
           >
-            <div className="p-4 border-b flex items-center justify-between bg-background/50">
-              <div className="flex items-center gap-2">
+            <div className="p-4 border-b flex items-center justify-between bg-background/50 backdrop-blur-sm sticky top-0 z-10">
+              <div className="flex items-center gap-3">
                 <input
                   type="checkbox"
-                  className="rounded border-muted-foreground/30"
+                  className="h-4 w-4 rounded border-muted-foreground/30 cursor-pointer accent-primary"
+                  checked={selectedEmailIds.size === filteredEmails.length && filteredEmails.length > 0}
+                  onChange={handleSelectAll}
                 />
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  {currentFolder === "trash" ? "Trash" : "All Messages"}
+                <span className="text-[11px] font-extrabold text-muted-foreground uppercase tracking-[0.25em] antialiased">
+                  {currentFolder === "trash" ? "Trash" : "Messages"}
+                  {filteredEmails.length > 0 && (
+                    <span className="ml-2 px-2 py-0.5 bg-muted rounded-full text-[9px] tracking-normal">
+                      {filteredEmails.length}
+                    </span>
+                  )}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -804,22 +1087,77 @@ export default function EmailPage() {
                     description="Are you sure you want to permanently delete all messages in Trash? This action cannot be undone."
                   >
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
-                      className="h-8 text-xs font-bold text-white hover:bg-white/10 rounded-xl px-4 border-2 border-white flex items-center gap-2 transition-all"
+                      className="h-8 text-xs font-bold bg-destructive/10 text-destructive hover:bg-destructive hover:text-white rounded-xl px-4 border-none flex items-center gap-2 transition-all"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                       Empty Trash
                     </Button>
                   </ConfirmModal>
                 )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground"
-                >
-                  <MoreVertical className="w-4 h-4" />
-                </Button>
+                
+                {selectedEmailIds.size > 0 && (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.9, y: 5 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    className="flex items-center gap-1 bg-background/80 backdrop-blur-md border border-muted/50 rounded-full px-1.5 py-1 shadow-2xl ring-1 ring-white/10"
+                  >
+                    <ConfirmModal
+                      onConfirm={handleBatchDelete}
+                      title={currentFolder === 'trash' ? "Delete Permanently?" : "Move to Trash?"}
+                      description={`Are you sure you want to ${currentFolder === 'trash' ? 'permanently delete' : 'move to trash'} ${selectedEmailIds.size} selected emails?`}
+                    >
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 text-destructive hover:bg-destructive/10 rounded-full transition-all active:scale-90"
+                        title={currentFolder === 'trash' ? "Delete Permanently" : "Move to Trash"}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </ConfirmModal>
+
+                    <Separator orientation="vertical" className="h-4 mx-1 opacity-50" />
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 text-muted-foreground hover:bg-muted rounded-full transition-all active:scale-90"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56 rounded-[1.5rem] shadow-2xl p-2 border-muted/20 backdrop-blur-xl bg-background/95 ring-1 ring-black/5">
+                        <div 
+                          className="flex items-center gap-3 px-3 py-3 text-sm hover:bg-primary/10 hover:text-primary rounded-xl cursor-pointer transition-all font-bold tracking-tight"
+                          onClick={() => handleBatchMarkAsRead(true)}
+                        >
+                          <MailOpen className="w-4 h-4 opacity-70" />
+                          <span>Mark as Read</span>
+                        </div>
+                        <div 
+                          className="flex items-center gap-3 px-3 py-3 text-sm hover:bg-primary/10 hover:text-primary rounded-xl cursor-pointer transition-all font-bold tracking-tight"
+                          onClick={() => handleBatchMarkAsRead(false)}
+                        >
+                          <Mail className="w-4 h-4 opacity-70" />
+                          <span>Mark as Unread</span>
+                        </div>
+                        {currentFolder !== 'archive' && (
+                          <div 
+                            className="flex items-center gap-3 px-3 py-3 text-sm hover:bg-primary/10 hover:text-primary rounded-xl cursor-pointer transition-all font-bold tracking-tight"
+                            onClick={handleBatchArchive}
+                          >
+                            <Archive className="w-4 h-4 opacity-70" />
+                            <span>Archive Selected</span>
+                          </div>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </motion.div>
+                )}
               </div>
             </div>
             <ScrollArea className="flex-1">
@@ -836,43 +1174,59 @@ export default function EmailPage() {
                   </div>
                 )}
                 {filteredEmails.map((email) => (
-                  <div
+                  <motion.div
                     key={email.id}
-                    className={`p-4 cursor-pointer transition-all hover:bg-muted/50 group relative ${selectedEmail?.id === email.id ? "bg-primary/5 ring-1 ring-inset ring-primary/20" : ""} ${!email.is_read ? "bg-background border-l-4 border-l-primary" : ""}`}
+                    layout
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className={`p-4 cursor-pointer transition-all duration-300 relative group border-b border-muted/30 ${selectedEmail?.id === email.id ? "bg-primary/5 ring-1 ring-inset ring-primary/20" : "hover:bg-muted/40"} ${!email.is_read ? "bg-background" : ""}`}
                     onClick={() => {
                       setSelectedEmail(email);
                       markAsRead(email);
                     }}
                   >
-                    <div className="flex items-start gap-3">
-                      <Avatar className="h-10 w-10 ring-2 ring-background shadow-sm">
-                        <AvatarImage src={email.sender?.avatar_url} />
-                        <AvatarFallback className="bg-primary/5 text-primary text-xs font-bold">
-                          {email.sender?.full_name?.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
+                    {!email.is_read && (
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-full shadow-[0_0_8px_rgba(var(--primary),0.5)]" />
+                    )}
+                    <div className="flex items-start gap-4">
+                      <div className="flex items-center gap-3 shrink-0 pt-0.5">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-muted-foreground/30 cursor-pointer accent-primary transition-all"
+                          checked={selectedEmailIds.has(email.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => toggleEmailSelection(email.id)}
+                        />
+                        <Avatar className="h-10 w-10 ring-2 ring-background shadow-md shrink-0 transition-transform group-hover:scale-105">
+                          <AvatarImage src={email.sender?.avatar_url} />
+                          <AvatarFallback className="bg-gradient-to-br from-primary/10 to-primary/5 text-primary text-xs font-bold">
+                            {email.sender?.full_name?.charAt(0)}
+                          </AvatarFallback>
+                        </Avatar>
+                      </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center justify-between mb-0.5">
                           <span
-                            className={`text-sm truncate ${!email.is_read ? "font-bold text-foreground" : "font-medium text-muted-foreground"}`}
+                            className={`text-sm truncate ${!email.is_read ? "font-bold text-foreground" : "font-semibold text-muted-foreground/80"}`}
                           >
                             {email.sender?.full_name}
                           </span>
-                          <span className="text-[10px] text-muted-foreground font-medium">
+                          <span className="text-[10px] text-muted-foreground/50 font-bold uppercase tracking-wider">
                             {format(new Date(email.created_at), "MMM d")}
                           </span>
                         </div>
                         <h4
-                          className={`text-xs truncate mb-1 ${!email.is_read ? "font-bold text-foreground" : "font-semibold text-muted-foreground/80"}`}
+                          className={`text-[13px] truncate mb-0.5 leading-snug tracking-tight ${!email.is_read ? "font-bold text-foreground" : "font-medium text-muted-foreground/70"}`}
                         >
                           {email.subject}
                         </h4>
-                        <p className="text-xs text-muted-foreground line-clamp-1 leading-relaxed">
+                        <p className="text-xs text-muted-foreground/50 line-clamp-1 leading-relaxed antialiased">
                           {email.body}
                         </p>
                       </div>
                     </div>
-                    <div className="absolute right-4 bottom-4 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
                       <Button
                         variant="ghost"
                         size="icon"
@@ -935,7 +1289,7 @@ export default function EmailPage() {
                         </Button>
                       )}
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             </ScrollArea>
@@ -943,11 +1297,19 @@ export default function EmailPage() {
 
           {/* Email Preview */}
           <div
-            className={`flex-1 flex flex-col bg-background relative ${!selectedEmail ? "hidden lg:flex items-center justify-center" : "flex"}`}
+            className={`flex-1 flex flex-col bg-background relative ${!selectedEmail ? "hidden lg:flex items-center justify-center" : "flex overflow-hidden"}`}
           >
-            {selectedEmail ? (
-              <>
-                <header className="h-16 border-b flex items-center justify-between px-6 sticky top-0 bg-background/95 backdrop-blur z-10">
+            <AnimatePresence mode="wait">
+              {selectedEmail ? (
+                <motion.div
+                  key={selectedEmail.id}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                  className="flex flex-col h-full"
+                >
+                  <header className="h-16 border-b flex items-center justify-between px-6 sticky top-0 bg-background/80 backdrop-blur-md z-10">
                   <div className="flex items-center gap-1">
                     <Button
                       variant="ghost"
@@ -1030,42 +1392,64 @@ export default function EmailPage() {
                         className={`w-4 h-4 ${selectedEmail.is_starred ? "fill-yellow-500 text-yellow-500" : ""}`}
                       />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="rounded-full"
-                    >
-                      <MoreVertical className="w-4 h-4" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="rounded-full h-10 w-10 hover:bg-muted transition-all active:scale-95"
+                        >
+                          <MoreVertical className="w-4 h-4 text-muted-foreground" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56 rounded-[1.5rem] shadow-2xl p-2 border-muted/20 backdrop-blur-xl bg-background/95 ring-1 ring-black/5">
+                        <div className="flex items-center gap-3 px-3 py-3 text-sm hover:bg-primary/10 hover:text-primary rounded-xl cursor-pointer transition-all font-bold tracking-tight">
+                          <Reply className="w-4 h-4 opacity-70" />
+                          <span>Reply to Message</span>
+                        </div>
+                        <div className="flex items-center gap-3 px-3 py-3 text-sm hover:bg-primary/10 hover:text-primary rounded-xl cursor-pointer transition-all font-bold tracking-tight">
+                          <Forward className="w-4 h-4 opacity-70" />
+                          <span>Forward Message</span>
+                        </div>
+                        <Separator className="my-2 opacity-50" />
+                        <div className="flex items-center gap-3 px-3 py-3 text-sm hover:bg-primary/10 hover:text-primary rounded-xl cursor-pointer transition-all font-bold tracking-tight">
+                          <Star className="w-4 h-4 opacity-70" />
+                          <span>{selectedEmail.is_starred ? 'Unstar' : 'Star'} Message</span>
+                        </div>
+                        <div className="flex items-center gap-3 px-3 py-3 text-sm text-destructive hover:bg-destructive/10 rounded-xl cursor-pointer transition-all font-bold tracking-tight">
+                          <Trash2 className="w-4 h-4 opacity-70" />
+                          <span>Move to Trash</span>
+                        </div>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </header>
                 <ScrollArea className="flex-1">
-                  <div className="max-w-4xl mx-auto p-8 md:p-12">
-                    <div className="flex items-start justify-between mb-10">
-                      <div className="space-y-4 flex-1">
-                        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground leading-tight">
+                  <div className="max-w-4xl mx-auto p-8 md:p-12 space-y-12">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-6 flex-1">
+                        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-foreground leading-[1.1] antialiased">
                           {selectedEmail.subject}
                         </h1>
-                        <div className="flex items-center gap-4">
-                          <Avatar className="h-12 w-12 ring-4 ring-muted shadow-lg">
+                        <div className="flex items-center gap-4 p-4 rounded-2xl bg-muted/30 border border-muted/50 w-fit">
+                          <Avatar className="h-12 w-12 ring-2 ring-background shadow-xl">
                             <AvatarImage
                               src={selectedEmail.sender?.avatar_url}
                             />
-                            <AvatarFallback className="bg-primary/5 text-primary text-lg font-bold">
+                            <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/10 text-primary text-xl font-bold">
                               {selectedEmail.sender?.full_name?.charAt(0)}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex flex-col">
                             <div className="flex items-center gap-2">
-                              <span className="font-bold text-foreground">
+                              <span className="font-bold text-foreground text-sm uppercase tracking-tight">
                                 {selectedEmail.sender?.full_name}
                               </span>
-                              <span className="text-xs text-muted-foreground font-medium">
-                                &lt;{selectedEmail.sender?.email}&gt;
+                              <span className="text-[11px] text-muted-foreground font-semibold bg-muted px-1.5 py-0.5 rounded-md lowercase tracking-normal">
+                                {selectedEmail.sender?.email}
                               </span>
                             </div>
-                            <span className="text-xs text-muted-foreground font-medium">
-                              to me,{" "}
+                            <span className="text-[11px] text-muted-foreground/60 font-bold uppercase tracking-widest mt-0.5">
                               {format(
                                 new Date(selectedEmail.created_at),
                                 "MMMM d, yyyy • HH:mm",
@@ -1076,170 +1460,183 @@ export default function EmailPage() {
                       </div>
                     </div>
 
-                    <div className="prose prose-sm dark:prose-invert max-w-none text-foreground/90 leading-relaxed whitespace-pre-wrap text-base">
+                    <div className="prose prose-lg dark:prose-invert max-w-none text-foreground/80 leading-relaxed whitespace-pre-wrap text-[15px] font-medium tracking-normal antialiased">
                       {selectedEmail.body}
                     </div>
 
                     {selectedEmail.attachment_url && (
-                      <div className="mt-10 p-6 rounded-2xl border-2 border-dashed border-muted bg-muted/5">
-                        <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-4">
-                          Attachments (1)
+                      <div className="p-6 rounded-[2rem] border-2 border-dashed border-muted/50 bg-muted/10">
+                        <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/40 mb-6 px-2">
+                          Attachments
                         </h4>
-                        <div className="flex items-center gap-4 p-4 rounded-xl bg-background border shadow-sm group hover:shadow-md transition-all w-fit min-w-[280px]">
-                          <div className="p-3 rounded-lg bg-primary/5 text-primary">
-                            <Paperclip className="w-5 h-5" />
+                        <div className="flex items-center gap-5 p-5 rounded-2xl bg-background border border-muted/50 shadow-sm group hover:shadow-xl transition-all duration-500 w-fit min-w-[320px]">
+                          <div className="p-4 rounded-xl bg-primary/10 text-primary shadow-inner">
+                            <Paperclip className="w-6 h-6" />
                           </div>
                           <div className="flex flex-col flex-1 min-w-0">
-                            <span className="text-sm font-bold truncate">
+                            <span className="text-sm font-bold truncate tracking-tight">
                               {selectedEmail.attachment_name}
                             </span>
-                            <span className="text-[10px] text-muted-foreground">
-                              Click to download attachment
+                            <span className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-widest mt-1">
+                              Download Attachment
                             </span>
                           </div>
                           <a
                             href={selectedEmail.attachment_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="p-2 rounded-full hover:bg-muted text-muted-foreground hover:text-primary transition-colors"
+                            className="p-3 rounded-full hover:bg-primary/10 text-muted-foreground hover:text-primary transition-all duration-300"
                           >
-                            <Download className="w-4 h-4" />
+                            <Download className="w-5 h-5" />
                           </a>
                         </div>
                       </div>
                     )}
 
-                    <Separator className="my-12 opacity-50" />
-
-                    <div className="flex flex-wrap gap-4">
-                      <Button
-                        variant="outline"
-                        className="rounded-full px-6 h-11 border-2 hover:bg-primary/5 hover:border-primary/50 transition-all font-semibold"
-                        onClick={() => handleReplyEmail(selectedEmail)}
-                      >
-                        <Reply className="w-4 h-4 mr-2" />
-                        Reply
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="rounded-full px-6 h-11 border-2 hover:bg-primary/5 hover:border-primary/50 transition-all font-semibold"
-                        onClick={() => handleForwardEmail(selectedEmail)}
-                      >
-                        <Forward className="w-4 h-4 mr-2" />
-                        Forward
-                      </Button>
+                    <div className="pt-8 border-t border-muted/30">
+                      <div className="flex flex-wrap gap-4">
+                        <Button
+                          variant="outline"
+                          className="rounded-2xl px-8 h-12 border-2 hover:bg-primary/5 hover:border-primary/40 transition-all duration-300 font-bold tracking-tight shadow-sm"
+                          onClick={() => handleReplyEmail(selectedEmail)}
+                        >
+                          <Reply className="w-4 h-4 mr-2.5" />
+                          Reply
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="rounded-2xl px-8 h-12 border-2 hover:bg-primary/5 hover:border-primary/40 transition-all duration-300 font-bold tracking-tight shadow-sm"
+                          onClick={() => handleForwardEmail(selectedEmail)}
+                        >
+                          <Forward className="w-4 h-4 mr-2.5" />
+                          Forward
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </ScrollArea>
-              </>
+              </motion.div>
             ) : (
-              <div className="flex flex-col items-center justify-center p-12 text-center animate-in fade-in duration-500">
-                <div className="relative mb-8">
-                  <div className="absolute inset-0 bg-primary/10 blur-3xl rounded-full" />
-                  <Inbox className="w-24 h-24 text-muted-foreground/20 relative z-10" />
-                </div>
-                <h3 className="text-2xl font-bold text-foreground">
-                  Select an email to read
-                </h3>
-                <p className="mt-3 text-muted-foreground max-w-sm leading-relaxed">
-                  Choose a message from the list on the left to see its full
-                  content here.
-                </p>
-              </div>
-            )}
+                <motion.div
+                  key="empty-state"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5, ease: "easeOut" }}
+                  className="flex flex-col items-center justify-center p-12 text-center"
+                >
+                  <div className="relative mb-10 group">
+                    <div className="absolute inset-0 bg-primary/20 blur-[100px] rounded-full scale-150 group-hover:scale-175 transition-transform duration-1000" />
+                    <div className="relative z-10 w-32 h-32 flex items-center justify-center rounded-[3rem] bg-gradient-to-br from-background to-muted shadow-2xl border border-muted-foreground/10 group-hover:rotate-6 transition-transform duration-500">
+                      <Inbox className="w-16 h-16 text-primary/30" />
+                    </div>
+                  </div>
+                  <h3 className="text-3xl font-black text-foreground tracking-tight mb-4">
+                    Ready for focus?
+                  </h3>
+                  <p className="text-muted-foreground/60 max-w-[280px] leading-relaxed font-semibold uppercase text-[10px] tracking-[0.2em] antialiased">
+                    Select a conversation to start reading and collaborating.
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </SidebarInset>
 
-      {/* Compose Modal */}
       <Dialog open={isComposeOpen} onOpenChange={setIsComposeOpen}>
-        <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden rounded-3xl border-none shadow-2xl">
-          <DialogHeader className="px-6 py-4 bg-muted/30 border-b">
-            <DialogTitle className="text-lg font-bold flex items-center gap-2">
-              <Plus className="w-5 h-5 text-primary" />
+        <DialogContent className="sm:max-w-[640px] p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl bg-background/80 backdrop-blur-2xl ring-1 ring-white/10">
+          <DialogHeader className="px-8 py-6 bg-gradient-to-r from-primary/5 to-transparent border-b border-muted/20">
+            <DialogTitle className="text-2xl font-bold tracking-tight flex items-center gap-3">
+              <div className="p-2 rounded-2xl bg-primary/10 text-primary">
+                <Plus className="w-6 h-6" />
+              </div>
               New Message
             </DialogTitle>
           </DialogHeader>
-          <div className="p-6 space-y-4">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">
+          <div className="p-8 space-y-8">
+            <div className="space-y-3">
+              <label className="text-[10px] font-black uppercase tracking-[0.25em] text-muted-foreground/50 px-1">
                 Recipient
               </label>
               <Select onValueChange={setComposeTo} value={composeTo}>
-                <SelectTrigger className="h-11 rounded-xl bg-muted/20 border-none focus:ring-1 focus:ring-primary/20">
-                  <SelectValue placeholder="Select a member..." />
+                <SelectTrigger className="h-16 rounded-[1.5rem] bg-muted/20 border-2 border-transparent focus:border-primary/20 focus:ring-0 transition-all text-base px-6 shadow-inner hover:bg-muted/30">
+                  <SelectValue placeholder="Select a team member..." />
                 </SelectTrigger>
-                <SelectContent className="rounded-xl border-none shadow-xl">
+                <SelectContent className="rounded-[1.5rem] border-muted/20 shadow-2xl p-2 backdrop-blur-xl bg-background/95 ring-1 ring-black/5">
                   {members
                     .filter((m) => m.user_id !== user?.id)
                     .map((member) => (
                       <SelectItem
                         key={member.id}
                         value={member.user_id}
-                        className="rounded-lg"
+                        className="rounded-xl py-3 cursor-pointer focus:bg-primary/5 focus:text-primary transition-colors"
                       >
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-6 w-6">
+                        <div className="flex items-center gap-4">
+                          <Avatar className="h-9 w-9 ring-2 ring-background shadow-md">
                             <AvatarImage
                               src={member.user_profiles?.avatar_url}
                             />
-                            <AvatarFallback>
+                            <AvatarFallback className="bg-primary/5 text-primary text-xs font-bold">
                               {member.user_profiles?.full_name?.charAt(0)}
                             </AvatarFallback>
                           </Avatar>
-                          <span>{member.user_profiles?.full_name}</span>
+                          <span className="font-semibold">{member.user_profiles?.full_name}</span>
                         </div>
                       </SelectItem>
                     ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">
+            <div className="space-y-3">
+              <label className="text-[10px] font-black uppercase tracking-[0.25em] text-muted-foreground/50 px-1">
                 Subject
               </label>
               <Input
-                placeholder="What is this about?"
-                className="h-11 rounded-xl bg-muted/20 border-none focus-visible:ring-1 focus-visible:ring-primary/20"
+                placeholder="What's this about?"
+                className="h-16 rounded-[1.5rem] bg-muted/20 border-2 border-transparent focus:border-primary/20 focus:ring-0 transition-all text-lg px-6 shadow-inner font-bold tracking-tight hover:bg-muted/30"
                 value={composeSubject}
                 onChange={(e) => setComposeSubject(e.target.value)}
               />
             </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">
+            <div className="space-y-3">
+              <label className="text-[10px] font-black uppercase tracking-[0.25em] text-muted-foreground/50 px-1">
                 Message Content
               </label>
               <textarea
-                rows={8}
                 placeholder="Write your message here..."
-                className="w-full bg-muted/20 rounded-2xl border-none p-4 text-sm focus:ring-1 focus:ring-primary/20 outline-none resize-none"
+                className="w-full min-h-[240px] p-6 rounded-[2rem] bg-muted/20 border-2 border-transparent focus:border-primary/20 focus:ring-0 transition-all text-base resize-none shadow-inner font-medium leading-relaxed hover:bg-muted/30 placeholder:text-muted-foreground/40"
                 value={composeBody}
                 onChange={(e) => setComposeBody(e.target.value)}
               />
             </div>
 
             {composeAttachment && (
-              <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-                <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                  <Paperclip className="w-4 h-4" />
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-4 rounded-2xl bg-primary/5 border border-primary/20 flex items-center gap-4 group"
+              >
+                <div className="p-3 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform shadow-sm">
+                  <Paperclip className="w-5 h-5" />
                 </div>
                 <div className="flex flex-col flex-1 min-w-0">
-                  <span className="text-xs font-bold truncate">
+                  <span className="text-sm font-bold truncate">
                     {composeAttachment.name}
                   </span>
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Attachment Ready</span>
                 </div>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  className="h-10 w-10 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full transition-all"
                   onClick={() => setComposeAttachment(null)}
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-5 h-5" />
                 </Button>
-              </div>
+              </motion.div>
             )}
           </div>
-          <DialogFooter className="px-6 py-4 bg-muted/30 border-t flex items-center justify-between">
+          <DialogFooter className="px-8 py-6 bg-gradient-to-r from-transparent to-primary/5 border-t border-muted/20 flex items-center justify-between sm:justify-between">
             <div className="flex items-center gap-2">
               <input
                 type="file"
@@ -1249,30 +1646,30 @@ export default function EmailPage() {
               />
               <Button
                 variant="ghost"
-                className="rounded-xl font-semibold gap-2"
+                className="rounded-2xl font-bold gap-2 px-6 h-12 hover:bg-primary/5 hover:text-primary transition-all active:scale-95"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
               >
                 <Paperclip
-                  className={`w-4 h-4 ${isUploading ? "animate-pulse" : ""}`}
+                  className={`w-5 h-5 ${isUploading ? "animate-spin" : ""}`}
                 />
                 {isUploading ? "Uploading..." : "Attach File"}
               </Button>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <Button
                 variant="ghost"
-                className="rounded-xl font-semibold"
+                className="rounded-2xl font-bold px-6 h-12 hover:bg-muted/50 transition-all active:scale-95"
                 onClick={() => setIsComposeOpen(false)}
               >
                 Discard
               </Button>
               <Button
-                className="rounded-xl px-8 h-11 font-bold shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95"
+                className="rounded-2xl px-10 h-12 font-bold shadow-2xl shadow-primary/30 transition-all hover:scale-[1.05] hover:shadow-primary/40 active:scale-95 bg-gradient-to-r from-primary to-primary/80 border-none"
                 onClick={handleSendEmail}
                 disabled={isUploading}
               >
-                <Send className="w-4 h-4 mr-2" />
+                <Send className="w-5 h-5 mr-3" />
                 Send Message
               </Button>
             </div>
@@ -1300,31 +1697,48 @@ export default function EmailPage() {
       />
       <InboxModal isOpen={isInboxOpen} onClose={() => setIsInboxOpen(false)} />
       <Dialog open={isSnoozeModalOpen} onOpenChange={setIsSnoozeModalOpen}>
-        <DialogContent className="sm:max-w-[400px] p-0 overflow-hidden rounded-3xl border-none shadow-2xl">
-          <DialogHeader className="px-6 py-4 bg-muted/30 border-b">
-            <DialogTitle className="text-lg font-bold flex items-center gap-2">
-              <Clock className="w-5 h-5 text-primary" />
+        <DialogContent className="sm:max-w-[440px] p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl bg-background/80 backdrop-blur-2xl ring-1 ring-white/10">
+          <DialogHeader className="px-8 py-6 bg-gradient-to-r from-primary/5 to-transparent border-b border-muted/20">
+            <DialogTitle className="text-xl font-bold tracking-tight flex items-center gap-3">
+              <div className="p-2 rounded-2xl bg-primary/10 text-primary">
+                <Clock className="w-5 h-5" />
+              </div>
               Snoozed & Reminders
             </DialogTitle>
           </DialogHeader>
-          <div className="p-8 text-center space-y-4">
-            <div className="relative mb-6 inline-block">
-              <div className="absolute inset-0 bg-primary/10 blur-2xl rounded-full" />
-              <Clock className="w-16 h-16 text-primary relative z-10 mx-auto" />
+          <div className="p-10 text-center space-y-6">
+            <div className="relative mb-8 inline-block">
+              <motion.div 
+                animate={{ 
+                  scale: [1, 1.1, 1],
+                  rotate: [0, 5, -5, 0]
+                }}
+                transition={{ 
+                  repeat: Infinity, 
+                  duration: 4,
+                  ease: "easeInOut"
+                }}
+                className="relative z-10"
+              >
+                <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full scale-150" />
+                <div className="p-6 rounded-[2rem] bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 shadow-xl relative z-10">
+                  <Clock className="w-20 h-20 text-primary" />
+                </div>
+              </motion.div>
             </div>
-            <h3 className="text-xl font-bold">Coming Soon</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              The snooze and email reminder functionality is currently in
-              development. You will soon be able to schedule emails to reappear
-              in your inbox!
-            </p>
+            <div className="space-y-3">
+              <h3 className="text-2xl font-black tracking-tight bg-gradient-to-br from-foreground to-foreground/60 bg-clip-text text-transparent">Reminder System</h3>
+              <p className="text-base text-muted-foreground/80 font-medium leading-relaxed px-4">
+                We're crafting a state-of-the-art reminder system. Soon you'll be able to snooze conversations and set smart follow-up alerts that sync across all your devices.
+              </p>
+            </div>
           </div>
-          <DialogFooter className="px-6 py-4 bg-muted/30 border-t">
+          <DialogFooter className="px-8 py-6 bg-muted/10 border-t border-muted/20">
             <Button
-              className="w-full rounded-xl font-bold"
+              className="w-full rounded-2xl font-bold h-14 text-lg shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95 bg-gradient-to-r from-primary to-primary/80 border-none"
               onClick={() => setIsSnoozeModalOpen(false)}
             >
-              Got it
+              Got it, thanks!
             </Button>
           </DialogFooter>
         </DialogContent>

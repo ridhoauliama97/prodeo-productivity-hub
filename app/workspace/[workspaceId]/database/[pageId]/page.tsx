@@ -349,10 +349,10 @@ export default function DatabasePageComponent() {
         }
 
         if (!hasFinishedAt) {
-          handleAddField({ name: "Finished At", type: "text" });
+          handleAddField({ name: "Finished At", type: "text", database_id: database!.id, order_index: fields.length, is_title_field: false, properties: {} });
         }
         if (!hasCommentar) {
-          handleAddField({ name: "Commentar", type: "text" });
+          handleAddField({ name: "Commentar", type: "text", database_id: database!.id, order_index: fields.length + 1, is_title_field: false, properties: {} });
         }
       } else if (oldCompleted && !newCompleted) {
         // Status changed FROM completed to non-completed — clear Finished At

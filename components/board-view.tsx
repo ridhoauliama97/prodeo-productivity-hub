@@ -52,8 +52,14 @@ export function BoardView({
       : [];
 
     // Combine options from field and defaults (avoiding duplicates)
-    const allOptions = Array.from(new Set([
-      ...(groupByField.options || []),
+    // options may be strings or objects like { label: "New", color: "#..." }
+    const rawOptions = (groupByField.properties?.options || []) as any[];
+    const normalizedOptions = rawOptions
+      .map((opt: any) => (typeof opt === "string" ? opt : opt?.label || opt?.value || ""))
+      .filter(Boolean);
+    
+    const allOptions: string[] = Array.from(new Set([
+      ...normalizedOptions,
       ...defaultStatuses
     ]));
     
@@ -69,7 +75,9 @@ export function BoardView({
 
     // Distribute root rows into columns
     rootRows.forEach(row => {
-      let status = row.properties[groupByField.id] || "Uncategorized";
+      const rawStatus = row.properties[groupByField.id];
+      let status = typeof rawStatus === "string" ? rawStatus : String(rawStatus ?? "Uncategorized");
+      if (!status) status = "Uncategorized";
       
       // Match case-insensitive for standard statuses to avoid duplicate columns like "New" and "new"
       const matchedOption = allOptions.find(opt => opt.toLowerCase() === status.toLowerCase());
