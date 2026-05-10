@@ -1,40 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase-server'
-import { createClient as createBrowserClient } from '@supabase/supabase-js'
+import { cookies } from 'next/headers'
+import { createClient } from '@/utils/supabase/server'
 
 async function getAuthUser(req: NextRequest) {
-  // First try Bearer token from header
+  const cookieStore = await cookies()
+  const supabase = createClient(cookieStore)
+  
+  // 1. Try getting user from session/cookies
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (user) return user
+
+  // 2. Fallback to Authorization header if cookies are missing
   const authHeader = req.headers.get('Authorization')
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.replace('Bearer ', '')
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-    const { data, error } = await supabase.auth.getUser(token)
-    if (!error && data.user) return data.user
+    const { data: { user: headerUser } } = await supabase.auth.getUser(token)
+    return headerUser
   }
-  
-  // Next try cookies (since we access via browser fetch)
-  const cookieHeader = req.headers.get('cookie')
-  if (cookieHeader) {
-    // In server components or API routes without Next.js cookies() helper,
-    // we can use standard supabase auth getSession if we forward cookies,
-    // but the easiest way is to let Supabase auth client with cookies do it.
-    // However, since we're in standard Route Handler, let's just use 
-    // supabase-server if needed, or rely on the frontend sending the Bearer token.
-    // Since our frontend fetch("/api/admin/users") currently doesn't send Bearer 
-    // token explicitly via authFetch, it might fail unless we update it.
-    // Let's rely on standard cookies via createServerClient or update the frontend to use authFetch.
-  }
-  
+
   return null
 }
-
-// Alternatively, let's just use createServerClient if possible, but our current
-// authFetch in api-client.ts sends the Bearer token. I should update the frontend 
-// to use authFetch or send the token.
-// For now, I'll update the frontend to send the token. Let's assume the frontend sends the token.
 export async function GET(req: NextRequest) {
   try {
     const user = await getAuthUser(req)
